@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "site-selector",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

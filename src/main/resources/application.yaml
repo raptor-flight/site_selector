@@ -1,0 +1,7 @@
+quarkus:
+  http:
+    port: 8081
+    root-path: /site-selector
+  log:
+    console:
+      color: true
