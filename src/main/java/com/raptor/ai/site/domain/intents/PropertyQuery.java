@@ -1,9 +1,11 @@
 package com.raptor.ai.site.domain.intents;
 
 import java.util.List;
+import java.util.StringJoiner;
 
 public class PropertyQuery {
-    private PropertyQueryType type;
+    private PropertyIntentQueryType type;
+    private IntentMetrics metric;
     private String postCode;
     private List<String> postCodes;
     private Integer fromYear;
@@ -14,11 +16,11 @@ public class PropertyQuery {
         super();
     }
 
-    public PropertyQueryType getType() {
+    public PropertyIntentQueryType getType() {
         return type;
     }
 
-    public void setType(PropertyQueryType type) {
+    public void setType(PropertyIntentQueryType type) {
         this.type = type;
     }
 
@@ -60,5 +62,13 @@ public class PropertyQuery {
 
     public void setPropertyType(String propertyType) {
         this.propertyType = propertyType;
+    }
+
+    public IntentMetrics getMetric() {
+        return metric;
+    }
+
+    public void setMetric(IntentMetrics metric) {
+        this.metric = metric;
     }
 }

@@ -13,8 +13,9 @@ import smile.data.vector.StringVector;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -48,7 +49,7 @@ public class LandRegistryService implements LandRegistry {
 
     public List<PropertyPricePaidRecord> getRecords() {
         final CSVParser csvParser = new CSVParser();
-        final List<String> results = csvParser.getResults("data/hmlr/ppd_data.csv");
+        final List<String> results = csvParser.getResults("data/hmlr/ppd_data_all.csv");
         List<PropertyPricePaidRecord> _ppdStream = null;
         if ( results != null && !results.isEmpty()) {
             _ppdStream = results.stream()
@@ -59,14 +60,19 @@ public class LandRegistryService implements LandRegistry {
                         propertyPricePaidRecord.setAddress(new Address(rows[3], rows[8], rows[7], rows[9],
                                 rows[10], rows[11], rows[12], rows[13]));
                         propertyPricePaidRecord.setTenure(this.getTenure(rows[6]));
-                        propertyPricePaidRecord.setDateOfTransfer(LocalDate.parse(rows[2], DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+                        propertyPricePaidRecord.setDateOfTransfer(LocalDate.parse(this.clean(rows[2]), DateTimeFormatter.ofPattern("yyyy-MM-dd")));
                         propertyPricePaidRecord.setPropertyType(rows[4]);
+
                         return propertyPricePaidRecord;
 
                     }).collect(Collectors.toList());
         }
 
         return _ppdStream;
+    }
+
+    private String clean(String value) {
+        return value == null ? null : value.replace("\"", "").trim();
     }
 
     public Double getAveragePriceByPostCode(final String postCode) {
@@ -92,6 +98,45 @@ public class LandRegistryService implements LandRegistry {
 
         return averagePrimaryPostCodePrice;
     }
+
+    final ConcurrentMap<String , List<PropertyPricePaidRecord>> ppd_cache = new ConcurrentHashMap<>(1);
+
+
+    public IntSummaryStatistics retrieveAveragePriceCriteria( final String postCode, final Integer fromYear, final Integer toYear) {
+        if ( ppd_cache.get("PPD_CACHE") == null) {
+            ppd_cache.put("PPD_CACHE" ,  this.getRecords());
+        }
+
+        Stream<PropertyPricePaidRecord> ppdStream = ppd_cache.get("PPD_CACHE" ).stream();
+        Stream<PropertyPricePaidRecord> propertyPricePaidRecordFilteredStream = ppdStream.filter(ppd -> {
+            final String postCodeStream = ppd.getAddress().postCode().replaceAll("\\s+", "").replaceAll("\"", "").toUpperCase();
+            final int yearOfTransferStream = ppd.getDateOfTransfer().getYear();
+
+            if (postCodeStream.startsWith(postCode)
+                   && (yearOfTransferStream >= fromYear && yearOfTransferStream <= toYear)) {
+                logger.infof("year of transfer %d ", yearOfTransferStream);
+                return true;
+            }
+
+            return false;
+        });
+
+        IntSummaryStatistics statistics = propertyPricePaidRecordFilteredStream.mapToInt(ppd -> Integer.parseInt(ppd.getPrice().replaceAll("\"", ""))).summaryStatistics();
+
+        logger.infof("statistics %s " , statistics.toString());
+        return statistics;
+    }
+
+    private String extractPrimaryPostCode(String postCode) {
+        if (postCode == null) return null;
+
+        String normalized = postCode.replaceAll("\\s+", "").toUpperCase();
+
+        // Extract outward code (B38, B1, B15, etc.)
+        return normalized.replaceAll("([A-Z]{1,2}\\d{1,2}).*", "$1");
+    }
+
+
 
 
     private DataFrame buildPPDToDataFrame(final List<PropertyPricePaidRecord> ppdRecords ) {

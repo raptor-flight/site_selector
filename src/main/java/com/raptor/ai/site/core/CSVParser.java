@@ -13,7 +13,7 @@ public class CSVParser {
 
     public List<String> getResults(final String dataSet ) {
        final List<String> record = new ArrayList<>(120);
-        InputStream resourceAsStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(dataSet);
+       InputStream resourceAsStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(dataSet);
 
         try ( final BufferedReader reader = new BufferedReader(new
                 InputStreamReader(resourceAsStream))) {
@@ -31,7 +31,15 @@ public class CSVParser {
            throw new RuntimeException(e);
        } catch (IOException e) {
            throw new RuntimeException(e);
-       }
+       } finally {
+            if ( resourceAsStream != null ) {
+                try {
+                    resourceAsStream.close();
+                } catch (final IOException ioex) {
+                    throw new RuntimeException(ioex);
+                }
+            }
+        }
 
        return record;
     }

@@ -1,0 +1,15 @@
+meta {
+  name: averagepricebypostcode_all_query
+  type: http
+  seq: 5
+}
+
+get {
+  url: http://localhost:8081/site-selector/nlp/query?q=average price in b16 over the last 30 years
+  body: none
+  auth: inherit
+}
+
+params:query {
+  q: average price in b16 over the last 30 years
+}

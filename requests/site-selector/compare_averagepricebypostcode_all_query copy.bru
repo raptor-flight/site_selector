@@ -1,0 +1,15 @@
+meta {
+  name: compare_averagepricebypostcode_all_query copy
+  type: http
+  seq: 6
+}
+
+get {
+  url: http://localhost:8081/site-selector/nlp/query?q=compare average price in B38 and B17 over the last 20 years
+  body: none
+  auth: inherit
+}
+
+params:query {
+  q: compare average price in B38 and B17 over the last 20 years
+}
