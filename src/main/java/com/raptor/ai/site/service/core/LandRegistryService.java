@@ -1,10 +1,13 @@
 package com.raptor.ai.site.service.core;
 
 import com.raptor.ai.site.core.CSVParser;
+import com.raptor.ai.site.core.MetricAlgo;
 import com.raptor.ai.site.domain.model.common.Address;
+import com.raptor.ai.site.domain.model.common.MetricStats;
 import com.raptor.ai.site.domain.model.ppd.PropertyPricePaidRecord;
 import com.raptor.ai.site.service.LandRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 import smile.data.DataFrame;
 import smile.data.vector.DoubleVector;
@@ -13,7 +16,9 @@ import smile.data.vector.StringVector;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.IntSummaryStatistics;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
@@ -27,7 +32,10 @@ import java.util.stream.Stream;
 public class LandRegistryService implements LandRegistry {
 
     /** --- members --- */
-    private final Logger logger = Logger.getLogger(LandRegistryService.class);
+    @Inject
+    Logger logger;
+    @Inject
+    MetricAlgo metricAlgo;
 
     public LandRegistryService() {
         super();
@@ -99,7 +107,7 @@ public class LandRegistryService implements LandRegistry {
         return averagePrimaryPostCodePrice;
     }
 
-    final ConcurrentMap<String , List<PropertyPricePaidRecord>> ppd_cache = new ConcurrentHashMap<>(1);
+    private final ConcurrentMap<String , List<PropertyPricePaidRecord>> ppd_cache = new ConcurrentHashMap<>(1);
 
 
     public IntSummaryStatistics retrieveAveragePriceCriteria( final String postCode, final Integer fromYear, final Integer toYear) {
@@ -126,6 +134,38 @@ public class LandRegistryService implements LandRegistry {
         logger.infof("statistics %s " , statistics.toString());
         return statistics;
     }
+
+    public MetricStats retrieveMedianPrice(final String postCode, final Integer fromYear, final Integer toYear) {
+        if (ppd_cache.get("PPD_CACHE") == null) {
+            ppd_cache.put("PPD_CACHE", this.getRecords());
+        }
+
+        Stream<PropertyPricePaidRecord> ppdStream = ppd_cache.get("PPD_CACHE").stream();
+
+        var result = ppdStream
+                .filter(ppd -> {
+                    String postCodeStream = ppd.getAddress().postCode().replaceAll("\\s+", "").replaceAll("\"", "").toUpperCase();
+                    int yearOfTransferStream = ppd.getDateOfTransfer().getYear();
+                    if (postCodeStream.startsWith(postCode)
+                            && yearOfTransferStream >= fromYear
+                            && yearOfTransferStream <= toYear) {
+                        logger.infof("year of transfer %d ", yearOfTransferStream);
+                        return true;
+                    }
+                    return false;
+                })
+                .collect(Collectors.teeing(
+                        Collectors.toList(), // collect filtered records
+                        Collectors.summarizingInt(ppd -> Integer.parseInt(ppd.getPrice().replaceAll("\"", ""))), // stats
+                        (list, stats) -> Map.entry(list, stats) // merge into a single object
+                ));
+
+        List<PropertyPricePaidRecord> list = result.getKey();
+        IntSummaryStatistics statistics = result.getValue();
+
+        return new MetricStats(statistics, metricAlgo.getMedianValue(list));
+    }
+
 
     private String extractPrimaryPostCode(String postCode) {
         if (postCode == null) return null;

@@ -1,0 +1,15 @@
+meta {
+  name: compare_medianpricebypostcode_all_query
+  type: http
+  seq: 7
+}
+
+get {
+  url: http://localhost:8081/site-selector/nlp/query?q=compare the median price in b15 over the last 5 years
+  body: none
+  auth: inherit
+}
+
+params:query {
+  q: compare the median price in b15 over the last 5 years
+}

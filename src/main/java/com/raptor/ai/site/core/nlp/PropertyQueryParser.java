@@ -46,8 +46,12 @@ public class PropertyQueryParser {
 
         if ( text.contains("compare") ) {
             propertyQuery.setType(PropertyIntentQueryType.COMPARE_AREAS);
-        } else {
+        } /*else {
             propertyQuery.setType(PropertyIntentQueryType.AVERAGE_PRICE);
+        }*/
+
+        if ( text.contains("median")) {
+            propertyQuery.setMetric(IntentMetrics.MEDIAN_PRICE);
         }
 
 

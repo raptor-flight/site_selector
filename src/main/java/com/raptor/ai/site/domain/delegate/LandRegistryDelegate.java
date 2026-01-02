@@ -6,6 +6,7 @@ import com.raptor.ai.site.domain.intents.PropertyIntentQueryType;
 import com.raptor.ai.site.domain.intents.PropertyQuery;
 import com.raptor.ai.site.domain.model.PropertyMetaData;
 import com.raptor.ai.site.domain.model.PropertyResultQuery;
+import com.raptor.ai.site.domain.model.common.MetricStats;
 import com.raptor.ai.site.service.LandRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -156,8 +157,7 @@ public class LandRegistryDelegate {
                 response = this.handleCompare(userQuery, parsedQuery);
             }
             case PropertyIntentQueryType.AVERAGE_PRICE -> {
-                List<PropertyMetaData> metaData = new ArrayList<>(2);
-
+                final List<PropertyMetaData> metaData = new ArrayList<>(2);
                 for (final String postCode : this.deDuplicateOutwardPostCodes(parsedQuery)) {
                     final IntSummaryStatistics statistics =
                             landRegistryService.retrieveAveragePriceCriteria(
@@ -166,7 +166,7 @@ public class LandRegistryDelegate {
                                     parsedQuery.getToYear()
                             );
 
-                    PropertyMetaData propertyMetaData = new PropertyMetaData(
+                    final PropertyMetaData propertyMetaData = new PropertyMetaData(
                             postCode,
                             parsedQuery.getFromYear(),
                             parsedQuery.getToYear(),
@@ -228,10 +228,10 @@ public class LandRegistryDelegate {
      * @param postCode the raw postcode input
      * @return the outward postcode, or null if input is null
      */
-    private String extractPrimaryPostCode(String postCode) {
-        if (postCode == null) return null;
+    private String extractPrimaryPostCode(final String postCode) {
+        final String normalized = postCode.replaceAll("\\s+", "").toUpperCase();
+        logger.infof("normalised postcode %s." , normalized);
 
-        String normalized = postCode.replaceAll("\\s+", "").toUpperCase();
         return normalized.replaceAll("([A-Z]{1,2}\\d{1,2}).*", "$1");
     }
 
@@ -250,9 +250,33 @@ public class LandRegistryDelegate {
         PropertyResultQuery response = null;
 
         switch (query.getMetric()) {
+            case IntentMetrics.MEDIAN_PRICE -> {
+                logger.infof("metric %s",IntentMetrics.MEDIAN_PRICE);
+                final List<PropertyMetaData> meta = new ArrayList<>(1);
+                for (final String postCode : this.deDuplicateOutwardPostCodes(query)) {
+                    if (postCode != null && !postCode.isEmpty()) {
+                        MetricStats metricStats = landRegistryService.retrieveMedianPrice( postCode, query.getFromYear(), query.getToYear());
+                        final PropertyMetaData propertyMetaData = new PropertyMetaData(
+                                postCode,
+                                query.getFromYear(),
+                                query.getToYear(),
+                                metricStats.statistics().getCount(),
+                                metricStats.value());
+                        meta.add(propertyMetaData);
+                    }
+                }
+
+                if (postCodeCount > 1 && meta.size() == 1) {
+                    userQuery = "Only one unique area detected (" +
+                            meta.getFirst().postCode() +
+                            "). Showing average price instead.";
+                }
+
+                response = new PropertyResultQuery(userQuery, meta);
+            }
             case IntentMetrics.AVERAGE_PRICE -> {
                 final List<PropertyMetaData> meta = new ArrayList<>(1);
-                for (String postCode : this.deDuplicateOutwardPostCodes(query)) {
+                for (final String postCode : this.deDuplicateOutwardPostCodes(query)) {
                     if (postCode != null && !postCode.isEmpty()) {
                         IntSummaryStatistics statistics =
                                 landRegistryService.retrieveAveragePriceCriteria(
@@ -261,7 +285,7 @@ public class LandRegistryDelegate {
                                         query.getToYear()
                                 );
 
-                        PropertyMetaData propertyMetaData = new PropertyMetaData(
+                        final PropertyMetaData propertyMetaData = new PropertyMetaData(
                                 postCode,
                                 query.getFromYear(),
                                 query.getToYear(),

@@ -1,8 +1,8 @@
 package com.raptor.ai.site.service;
 
+import com.raptor.ai.site.domain.model.common.MetricStats;
 import smile.data.DataFrame;
 
-import java.util.DoubleSummaryStatistics;
 import java.util.IntSummaryStatistics;
 
 public interface LandRegistry {
@@ -14,4 +14,6 @@ public interface LandRegistry {
     Double getAveragePriceByPrimaryPostCode(final String primaryPostCode);
 
     IntSummaryStatistics retrieveAveragePriceCriteria(final String postCode, final Integer fromYear, final Integer toYear);
+
+    MetricStats retrieveMedianPrice(final String postCode, final Integer fromYear, final Integer toYear);
 }
