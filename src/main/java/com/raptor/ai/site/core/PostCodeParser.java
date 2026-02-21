@@ -5,10 +5,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @ApplicationScoped
@@ -19,6 +17,8 @@ public class PostCodeParser {
 
     private final Pattern POSTCODE_PATTERN = Pattern.compile("\\b([A-Z]{1,2}\\d{1,2})(?:\\s?\\d[A-Z]{2})?\\b",
             Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern OUTWARD = Pattern.compile("^([A-Z]{1,2}\\d{1,2}[A-Z]?).*");
 
 
     @Inject
@@ -40,10 +40,16 @@ public class PostCodeParser {
      * @return the outward postcode, or null if input is null
      */
     public String extractPrimaryPostCode(final String postCode) {
-        final String normalized = postCode.replaceAll("\\s+", "").toUpperCase();
-        logger.infof("normalised postcode %s." , normalized);
+        if (postCode == null) return null;
 
-        return normalized.replaceAll("([A-Z]{1,2}\\d{1,2}).*", "$1");
+        final String normalized = postCode.replaceAll("\\s+", "").toUpperCase(Locale.UK);
+        logger.infof("normalised postcode %s.", normalized);
+
+        final Matcher m = OUTWARD.matcher(normalized);
+        if (!m.matches()) {
+            return null; // <- critical change
+        }
+        return m.group(1);
     }
 
     /**

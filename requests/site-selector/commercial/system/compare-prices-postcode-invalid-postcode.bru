@@ -1,0 +1,23 @@
+meta {
+  name: compare-prices-postcode-invalid-postcode
+  type: http
+  seq: 7
+}
+
+get {
+  url: http://localhost:8081/site-selector/price/compare?outward=INVALID, b38, b15&fromYear=2000&toYear=2025&minSamples=10
+  body: none
+  auth: inherit
+}
+
+params:query {
+  outward: INVALID, b38, b15
+  fromYear: 2000
+  toYear: 2025
+  minSamples: 10
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

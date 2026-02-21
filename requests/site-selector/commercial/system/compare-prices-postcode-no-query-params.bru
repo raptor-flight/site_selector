@@ -1,0 +1,22 @@
+meta {
+  name: compare-prices-postcode-no-query-params
+  type: http
+  seq: 3
+}
+
+get {
+  url: http://localhost:8081/site-selector/price/compare?outward=b38, b17, b15&fromYear=2000&toYear=2025
+  body: none
+  auth: inherit
+}
+
+params:query {
+  outward: b38, b17, b15
+  fromYear: 2000
+  toYear: 2025
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

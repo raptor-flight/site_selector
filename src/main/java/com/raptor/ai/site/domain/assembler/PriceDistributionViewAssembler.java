@@ -77,11 +77,19 @@ public class PriceDistributionViewAssembler {
 
         final Meta metaData = new Meta(
                 minSample,
-                resolved.size(),
+                requested.size(),
                 areas.size(),
                 requested,
                 resolved,
                 filteredOut
+        );
+
+        logger.infof(
+                "requested=%s size=%d | resolved=%s size=%d | filteredOut=%s size=%d | areas=%d",
+                requested, requested.size(),
+                resolved, resolved.size(),
+                filteredOut, filteredOut.size(),
+                areas.size()
         );
 
         return new PPCompareView(
@@ -97,6 +105,8 @@ public class PriceDistributionViewAssembler {
 
     private List<String> retrieveRequestedPostCodes(final String postCodes) {
         return Arrays.stream(postCodes.split(","))
+                .map(s -> s.toUpperCase(Locale.UK))
+                .map(String::trim)
                 .toList();
     }
 
