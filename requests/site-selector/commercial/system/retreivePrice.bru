@@ -1,0 +1,21 @@
+meta {
+  name: retreivePrice
+  type: http
+  seq: 1
+}
+
+get {
+  url: http://localhost:8081/site-selector/price/distribution/b38 8dr?fromYear=2000&toYear=2025
+  body: none
+  auth: inherit
+}
+
+params:query {
+  fromYear: 2000
+  toYear: 2025
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

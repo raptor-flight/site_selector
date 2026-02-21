@@ -1,7 +1,13 @@
 quarkus:
+  banner:
+    path: banner.txt
+    enabled: true
   http:
     port: 8081
     root-path: /site-selector
   log:
     console:
       color: true
+      level: INFO
+
+

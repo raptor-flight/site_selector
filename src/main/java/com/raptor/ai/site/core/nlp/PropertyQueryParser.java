@@ -42,16 +42,16 @@ public class PropertyQueryParser {
         /*** --- detect average intent --- */
         if (text.contains("average") || text.contains("mean")) {
             propertyQuery.setMetric(IntentMetrics.AVERAGE_PRICE);
+        } else if ( text.contains("median")) {
+            propertyQuery.setMetric(IntentMetrics.MEDIAN_PRICE);
         }
 
         if ( text.contains("compare") ) {
             propertyQuery.setType(PropertyIntentQueryType.COMPARE_AREAS);
-        } /*else {
-            propertyQuery.setType(PropertyIntentQueryType.AVERAGE_PRICE);
-        }*/
+        }
 
-        if ( text.contains("median")) {
-            propertyQuery.setMetric(IntentMetrics.MEDIAN_PRICE);
+        if ( propertyQuery.getType() == null) {
+            propertyQuery.setType(PropertyIntentQueryType.COMPARE_AREAS);
         }
 
 
