@@ -49,7 +49,7 @@ public class PriceDistributionViewAssembler {
                 distribution.stdDev(), distribution.min(), distribution.max(),
                 distribution.percentile25(), distribution.percentile75(),
                 iqr, cv, iqrToMedian,
-                distribution.confidence()
+                distribution.confidence(), distribution.confidence().description()
         );
     }
 
@@ -58,22 +58,29 @@ public class PriceDistributionViewAssembler {
                                  final String postCodes,
                                  final SortBy sortBy,
                                  final SortDirection sortDirection,
-                                 final int minSample) {
+                                 final int minSample,
+                                 final RiskCriteria riskCriteria) {
 
-        // (i) requested
-        final List<String> requested = this.retrieveRequestedPostCodes(postCodes);
+        final List<String> requested = retrieveRequestedPostCodes(postCodes);
+        final List<String> resolved = retrievedResolvedPostCodes(requested);
+        final List<PPDistributionView> distributions = allPostCodeDistributions(resolved, fromYear, toYear);
 
-        // (ii) resolved
-        final List<String> resolved = this.retrievedResolvedPostCodes(requested);
+        Comparator<PPDistributionView> comparator =
+                (riskCriteria != null && riskCriteria.isActive())
+                        ? riskComparator(riskCriteria)
+                        : metricComparator(sortBy);
 
-        // (iii) all distributions (unfiltered)
-        final List<PPDistributionView> distributions = this.allPostCodeDistributions(resolved, fromYear, toYear);
+        final SortDirection dir = (sortDirection == null) ? SortDirection.ASC : sortDirection;
+        if (dir == SortDirection.DESC) comparator = comparator.reversed();
 
-        // (iv) kept + sorted
-        final List<PPDistributionView> areas = this.keptPostCodes(distributions, sortBy, sortDirection, minSample);
+        // optional but recommended: stable tie-breaks
+        comparator = comparator
+                .thenComparing(PPDistributionView::sampleSize, Comparator.reverseOrder())
+                .thenComparing(PPDistributionView::postCode);
 
-        // (v) filtered out (based on ALL distributions)
-        final List<String> filteredOut = this.filteredOutPostCodes(distributions, minSample);
+        final List<PPDistributionView> areas = keptPostCodes(distributions, minSample, comparator);
+
+        final List<String> filteredOut = filteredOutPostCodes(distributions, minSample);
 
         final Meta metaData = new Meta(
                 minSample,
@@ -84,19 +91,12 @@ public class PriceDistributionViewAssembler {
                 filteredOut
         );
 
-        logger.infof(
-                "requested=%s size=%d | resolved=%s size=%d | filteredOut=%s size=%d | areas=%d",
-                requested, requested.size(),
-                resolved, resolved.size(),
-                filteredOut, filteredOut.size(),
-                areas.size()
-        );
-
         return new PPCompareView(
                 fromYear,
                 toYear,
-                sortBy.name().toLowerCase(java.util.Locale.UK),
-                sortDirection == null ? "asc" : sortDirection.name().toLowerCase(java.util.Locale.UK),
+                (riskCriteria != null ? ("risk:" + riskCriteria.name().toLowerCase(java.util.Locale.UK))
+                        : sortBy.name().toLowerCase(java.util.Locale.UK)),
+                dir.name().toLowerCase(java.util.Locale.UK),
                 areas,
                 metaData
         );
@@ -126,11 +126,12 @@ public class PriceDistributionViewAssembler {
                 .toList();
     }
 
-    private List<PPDistributionView> keptPostCodes(final List<PPDistributionView> distributions, final SortBy sortBy ,
-                                                   final SortDirection sortDirection, final int minSample) {
+    private List<PPDistributionView> keptPostCodes(final List<PPDistributionView> distributions,
+                                                   final int minSample,
+                                                   final Comparator<PPDistributionView> comparator) {
         return distributions.stream()
                 .filter(ppd -> ppd.sampleSize() >= minSample)
-                .sorted(metricComparator(sortBy , sortDirection))
+                .sorted(comparator)
                 .toList();
     }
 
@@ -143,18 +144,11 @@ public class PriceDistributionViewAssembler {
 
 
 
-    private Comparator<PPDistributionView> metricComparator(final SortBy sortBy,
-                                                            final SortDirection direction) {
-        final SortDirection dir = (direction == null) ? SortDirection.ASC : direction;
-
-        final Comparator<PPDistributionView> primary = switch (sortBy) {
+    private Comparator<PPDistributionView> metricComparator(final SortBy sortBy) {
+        return switch (sortBy) {
             case MEAN -> Comparator.comparingDouble(PPDistributionView::mean);
             case MEDIAN -> Comparator.comparingDouble(PPDistributionView::median);
         };
-
-        final Comparator<PPDistributionView> comparator = primary.thenComparing(PPDistributionView::postCode);
-
-        return dir == SortDirection.DESC ? comparator.reversed() : comparator;
     }
 
     private Comparator<PPDistributionView> riskComparator( final RiskCriteria riskMode ) {

@@ -17,17 +17,16 @@ import java.util.List;
 
 @ApplicationScoped
 public class PPDAnalyticsEngine implements PriceAnalyticsEngine  {
+    private final Logger logger;
+    private final PpdDataProvider ppdDataProvider;
+    private final MetricAlgo metricAlgo;
 
     @Inject
-    Logger logger;
-    @Inject
-    PpdDataProvider ppdDataProvider;
-
-    @Inject
-    MetricAlgo metricAlgo;
-
-    public PPDAnalyticsEngine() {
+    public PPDAnalyticsEngine(final MetricAlgo metricAlgo , final PpdDataProvider ppdDataProvider , final Logger logger) {
         super();
+        this.logger = logger;
+        this.ppdDataProvider = ppdDataProvider;
+        this.metricAlgo = metricAlgo;
     }
 
 

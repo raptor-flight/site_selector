@@ -2,6 +2,7 @@ package com.raptor.ai.site.adaptor.system;
 
 
 import com.raptor.ai.site.domain.assembler.PriceDistributionViewAssembler;
+import com.raptor.ai.site.domain.model.common.RiskCriteria;
 import com.raptor.ai.site.domain.model.common.SortBy;
 import com.raptor.ai.site.domain.model.common.SortDirection;
 import com.raptor.ai.site.domain.model.exception.APIError;
@@ -60,7 +61,8 @@ public class APIPriceGateway {
                                 @QueryParam("toYear") final Integer toYear,
                                 @DefaultValue("median") @QueryParam("sortBy") final String sortBy,
                                 @DefaultValue("asc") @QueryParam("direction") final String direction,
-                                @DefaultValue("0") @QueryParam("minSamples") final Integer minSample) {
+                                @DefaultValue("0") @QueryParam("minSamples") final Integer minSample,
+                                @DefaultValue("none") @QueryParam("risk") final String risk) {
 
         /*** --- validation --- */
         if ( outwards == null || outwards.isBlank() ) {
@@ -76,7 +78,9 @@ public class APIPriceGateway {
         SortDirection sortDirection = SortDirection.from(direction);
         logger.infof("sort direction %s." , sortDirection);
 
-        return RestResponse.ok(assembler.compare(fromYear , toYear, outwards, sortMode, sortDirection, minSample));
+        RiskCriteria riskType = RiskCriteria.from(risk);
+
+        return RestResponse.ok(assembler.compare(fromYear , toYear, outwards, sortMode, sortDirection, minSample, riskType));
     }
 
 }
