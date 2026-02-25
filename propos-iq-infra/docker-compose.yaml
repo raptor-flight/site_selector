@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: proposiq-postgis
+    environment:
+      POSTGRES_DB: proposiq
+      POSTGRES_USER: proposiq
+      POSTGRES_PASSWORD: proposiq_dev_pw
+    ports:
+      - "5432:5432"
+    volumes:
+      - proposiq_pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U proposiq -d proposiq"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  proposiq_pgdata:
