@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PropOS IQ — Property Intelligence Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0b;
+  --bg2: #111113;
+  --bg3: #18181b;
+  --bg4: #222226;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #f0f0f0;
+  --text2: #9a9a9f;
+  --text3: #5a5a62;
+  --accent: #00e5a0;
+  --accent2: #00b87d;
+  --red: #ff4d4d;
+  --amber: #f5a623;
+  --blue: #4d9fff;
+  --mono: 'DM Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --display: 'Syne', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; }
+body { min-height: 100vh; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+
+/* LAYOUT */
+.shell { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
+
+/* HEADER */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 2rem; height: 56px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10,10,11,0.95);
+  backdrop-filter: blur(12px);
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 28px; height: 28px; background: var(--accent);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  flex-shrink: 0;
+}
+.logo-text { font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: 0.02em; }
+.logo-text span { color: var(--accent); }
+.nav { display: flex; gap: 4px; }
+.nav-btn {
+  background: none; border: none; color: var(--text2);
+  font-family: var(--sans); font-size: 13px; padding: 6px 14px;
+  border-radius: 6px; cursor: pointer; transition: all 0.15s;
+}
+.nav-btn:hover { color: var(--text); background: var(--bg3); }
+.nav-btn.active { color: var(--accent); background: rgba(0,229,160,0.08); }
+.status-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+/* MAIN */
+main { display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 56px); overflow: hidden; }
+
+/* SIDEBAR */
+.sidebar {
+  background: var(--bg2); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow-y: auto; padding: 1.5rem 1rem;
+}
+.sidebar-section { margin-bottom: 1.5rem; }
+.sidebar-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  color: var(--text3); text-transform: uppercase; margin-bottom: 8px; padding: 0 6px;
+}
+.mode-btn {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; background: none; border: none;
+  color: var(--text2); font-family: var(--sans); font-size: 13px;
+  padding: 8px 10px; border-radius: 8px; cursor: pointer;
+  transition: all 0.15s; text-align: left; margin-bottom: 2px;
+}
+.mode-btn:hover { color: var(--text); background: var(--bg3); }
+.mode-btn.active { color: var(--accent); background: rgba(0,229,160,0.08); }
+.mode-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--bg4); display: flex; align-items: center;
+  justify-content: center; font-size: 14px; flex-shrink: 0;
+}
+.mode-btn.active .mode-icon { background: rgba(0,229,160,0.15); }
+
+/* QUERY INPUT */
+.query-wrap { padding: 0 6px; }
+.query-input {
+  width: 100%; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-family: var(--sans);
+  font-size: 13px; padding: 10px 12px; resize: none; line-height: 1.5;
+  transition: border-color 0.15s; min-height: 80px;
+}
+.query-input:focus { outline: none; border-color: var(--accent); }
+.query-input::placeholder { color: var(--text3); }
+.query-send {
+  width: 100%; margin-top: 8px; background: var(--accent);
+  color: #000; border: none; border-radius: 8px; padding: 10px;
+  font-family: var(--display); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; letter-spacing: 0.02em;
+}
+.query-send:hover { background: #00ffb3; }
+.query-send:disabled { opacity: 0.4; cursor: not-allowed; }
+.quick-label { font-family: var(--mono); font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin: 12px 6px 6px; }
+.quick-btn {
+  display: block; width: 100%; background: none; border: 1px solid var(--border);
+  color: var(--text3); font-family: var(--mono); font-size: 11px;
+  padding: 6px 10px; border-radius: 6px; cursor: pointer; text-align: left;
+  margin-bottom: 4px; transition: all 0.15s; line-height: 1.4;
+}
+.quick-btn:hover { color: var(--text); border-color: var(--border2); background: var(--bg3); }
+
+/* CONTENT */
+.content { overflow-y: auto; background: var(--bg); }
+
+/* WELCOME */
+.welcome {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; padding: 3rem; text-align: center;
+}
+.welcome-hex {
+  width: 72px; height: 72px; background: rgba(0,229,160,0.1);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 1.5rem; font-size: 28px;
+}
+.welcome h1 { font-family: var(--display); font-size: 28px; font-weight: 700; margin-bottom: 0.75rem; }
+.welcome h1 span { color: var(--accent); }
+.welcome p { color: var(--text2); max-width: 420px; line-height: 1.7; font-size: 14px; }
+.data-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1.5rem; justify-content: center; }
+.pill {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 100px; padding: 4px 12px;
+  font-family: var(--mono); font-size: 11px; color: var(--text2);
+}
+
+/* LOADING */
+.loading-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; gap: 16px;
+}
+.loader {
+  width: 40px; height: 40px;
+  border: 2px solid var(--bg4);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-family: var(--mono); font-size: 12px; color: var(--text3); }
+
+/* RESPONSE */
+.response-wrap { padding: 2rem; }
+.response-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 1.5rem;
+  padding-bottom: 1rem; border-bottom: 1px solid var(--border);
+}
+.response-tag {
+  background: rgba(0,229,160,0.1); border: 1px solid rgba(0,229,160,0.2);
+  color: var(--accent); font-family: var(--mono); font-size: 11px;
+  padding: 3px 10px; border-radius: 4px; letter-spacing: 0.05em;
+}
+.response-query {
+  font-family: var(--mono); font-size: 12px; color: var(--text2);
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.response-time { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+
+/* SCORE CARDS */
+.score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+.score-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1rem;
+}
+.score-card-label { font-family: var(--mono); font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+.score-card-value { font-family: var(--display); font-size: 22px; font-weight: 700; }
+.score-card-sub { font-size: 12px; color: var(--text2); margin-top: 4px; }
+.grade-a { color: var(--accent); }
+.grade-b { color: #7be87b; }
+.grade-c { color: var(--amber); }
+.grade-d { color: #ff8c42; }
+.grade-f { color: var(--red); }
+.risk-low { color: var(--accent); }
+.risk-med { color: var(--amber); }
+.risk-high { color: var(--red); }
+
+/* RESPONSE TEXT */
+.response-text {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1.5rem;
+  font-size: 14px; line-height: 1.8; color: var(--text2);
+  white-space: pre-wrap; font-family: var(--sans);
+}
+.response-text strong, .section-head {
+  color: var(--accent); font-family: var(--mono);
+  font-size: 11px; letter-spacing: 0.1em;
+}
+
+/* ERROR */
+.error-box {
+  background: rgba(255,77,77,0.05); border: 1px solid rgba(255,77,77,0.2);
+  border-radius: 10px; padding: 1.5rem; color: var(--red);
+  font-family: var(--mono); font-size: 13px;
+}
+
+/* HISTORY */
+.history-item {
+  padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  margin-bottom: 2px; transition: background 0.1s;
+}
+.history-item:hover { background: var(--bg3); }
+.history-q { font-size: 12px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-t { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<header>
+  <div class="logo">
+    <div class="logo-mark"></div>
+    <div class="logo-text">Prop<span>OS</span> IQ</div>
+  </div>
+  <nav class="nav">
+    <button class="nav-btn active" onclick="setMode('search')">Search</button>
+    <button class="nav-btn" onclick="setMode('opportunities')">Opportunities</button>
+    <button class="nav-btn" onclick="setMode('compare')">Compare</button>
+    <button class="nav-btn" onclick="setMode('market')">Market</button>
+  </nav>
+  <div class="status-dot" title="Connected"></div>
+</header>
+
+<main>
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Mode</div>
+      <button class="mode-btn active" id="mode-search" onclick="setMode('search')">
+        <div class="mode-icon">◎</div> Postcode Search
+      </button>
+      <button class="mode-btn" id="mode-opportunities" onclick="setMode('opportunities')">
+        <div class="mode-icon">◈</div> Find Opportunities
+      </button>
+      <button class="mode-btn" id="mode-compare" onclick="setMode('compare')">
+        <div class="mode-icon">⊞</div> Compare Areas
+      </button>
+      <button class="mode-btn" id="mode-market" onclick="setMode('market')">
+        <div class="mode-icon">◑</div> Market Summary
+      </button>
+    </div>
+
+    <div class="sidebar-section query-wrap">
+      <div class="sidebar-label" style="padding:0;margin-bottom:8px;">Query</div>
+      <textarea class="query-input" id="queryInput" placeholder="Ask anything about UK property intelligence..." rows="4"></textarea>
+      <button class="query-send" id="sendBtn" onclick="sendQuery()">ANALYSE →</button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="quick-label">Quick queries</div>
+      <div id="quickBtns"></div>
+    </div>
+
+    <div class="sidebar-section" id="historySection" style="display:none;">
+      <div class="sidebar-label">Recent</div>
+      <div id="historyList"></div>
+    </div>
+  </aside>
+
+  <div class="content" id="content">
+    <div class="welcome" id="welcome">
+      <div class="welcome-hex">⬡</div>
+      <h1>UK Property <span>Intelligence</span></h1>
+      <p>Ask any question about UK property investment, risk, flood exposure, energy performance, demographics or market conditions.</p>
+      <div class="data-pills">
+        <span class="pill">29.3M transactions</span>
+        <span class="pill">28.6M EPC records</span>
+        <span class="pill">41M UPRNs</span>
+        <span class="pill">NaFRA2 flood risk</span>
+        <span class="pill">37 months crime data</span>
+        <span class="pill">Census 2021</span>
+        <span class="pill">Ofcom 2025</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+</div>
+
+<script>
+const API = '/propos-iq/propos/query';
+let currentMode = 'search';
+let history = [];
+
+const quickQueries = {
+  search: [
+    'What is the investment potential of B38 8DR Birmingham?',
+    'Full area profile for SW1A 1AA London',
+    'Is E1 7PT in East London a good investment?',
+    'Analyse M1 1AE Manchester for buy-to-let',
+  ],
+  opportunities: [
+    'Find regeneration opportunities in Birmingham',
+    'Show PRIME investment areas in Leeds',
+    'Best buy-to-let areas in Manchester',
+    'Find low risk high yield areas in Sheffield',
+  ],
+  compare: [
+    'Compare B38 8DR with B15 2TT Birmingham',
+    'Compare M1 1AE with M20 2LT Manchester',
+    'Compare investment potential of E1 and E3 London',
+  ],
+  market: [
+    'Market summary for Birmingham',
+    'Give me an overview of the Leeds property market',
+    'What are market conditions like in Manchester?',
+    'Summarise the Sheffield property market',
+  ]
+};
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  const navBtns = document.querySelectorAll('.nav-btn');
+  const modes = ['search','opportunities','compare','market'];
+  navBtns[modes.indexOf(mode)].classList.add('active');
+  document.getElementById('mode-' + mode).classList.add('active');
+  renderQuickBtns();
+  const placeholders = {
+    search: 'Enter a postcode to get the full intelligence profile...',
+    opportunities: 'Find investment opportunities in a city or region...',
+    compare: 'Compare two or more postcodes or areas...',
+    market: 'Get a market summary for a city or region...'
+  };
+  document.getElementById('queryInput').placeholder = placeholders[mode];
+}
+
+function renderQuickBtns() {
+  const container = document.getElementById('quickBtns');
+  container.innerHTML = (quickQueries[currentMode] || []).map(q =>
+    `<button class="quick-btn" onclick="setQuery(this.textContent)">${q}</button>`
+  ).join('');
+}
+
+function setQuery(text) {
+  document.getElementById('queryInput').value = text;
+  document.getElementById('queryInput').focus();
+}
+
+function addToHistory(query, timeMs) {
+  history.unshift({ q: query, t: timeMs });
+  if (history.length > 8) history.pop();
+  const section = document.getElementById('historySection');
+  const list = document.getElementById('historyList');
+  section.style.display = 'block';
+  list.innerHTML = history.map((h, i) =>
+    `<div class="history-item" onclick="setQuery(this.querySelector('.history-q').textContent)">
+      <div class="history-q">${h.q}</div>
+      <div class="history-t">${h.t}ms</div>
+    </div>`
+  ).join('');
+}
+
+function showLoading(query) {
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('content').innerHTML = `
+    <div class="loading-wrap">
+      <div class="loader"></div>
+      <div class="loading-text">Querying PropOS IQ intelligence layer...</div>
+    </div>`;
+}
+
+function showResponse(query, text, timeMs) {
+  const lines = text.split('\n');
+  const formatted = lines.map(line => {
+    if (line.match(/^[A-Z][A-Z\s]+:$/)) {
+      return `<div style="font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:0.1em;margin:1.2rem 0 0.4rem;">${line}</div>`;
+    }
+    if (line.trim().startsWith('-') || line.trim().startsWith('•')) {
+      return `<div style="padding-left:1rem;color:var(--text2);">${line}</div>`;
+    }
+    return `<div>${line}</div>`;
+  }).join('');
+
+  const scores = extractScores(text);
+
+  document.getElementById('content').innerHTML = `
+    <div class="response-wrap">
+      <div class="response-header">
+        <div class="response-tag">INTELLIGENCE REPORT</div>
+        <div class="response-query">${query}</div>
+        <div class="response-time">${timeMs}ms</div>
+      </div>
+      ${scores ? `<div class="score-grid">${scores}</div>` : ''}
+      <div class="response-text">${formatted}</div>
+    </div>`;
+}
+
+function extractScores(text) {
+  let cards = '';
+  const invest = text.match(/[Ii]nvestment\s*[Ss]core[:\s]+([0-9.]+)/);
+  const grade = text.match(/[Gg]rade\s+([A-F])\b/);
+  const risk = text.match(/[Rr]isk\s*[Ss]core[:\s]+([0-9.]+)/);
+  const riskRating = text.match(/risk\s+rating[:\s]+(\w+)/i) || text.match(/\(([A-Z]+)\)\s*risk/i) || text.match(/risk.*?\(([A-Z]+)\)/i);
+  const opGrade = text.match(/[Oo]pportunity\s+[Gg]rade[:\s]+(\w+)/);
+  const price = text.match(/median.*?£([0-9,]+)/i) || text.match(/£([0-9,]+)/);
+
+  if (invest) {
+    const g = grade ? grade[1] : '';
+    const cls = g === 'A' ? 'grade-a' : g === 'B' ? 'grade-b' : g === 'C' ? 'grade-c' : g === 'D' ? 'grade-d' : 'grade-f';
+    cards += `<div class="score-card"><div class="score-card-label">Investment Score</div><div class="score-card-value ${cls}">${parseFloat(invest[1]).toFixed(1)}</div><div class="score-card-sub">Grade ${g || '—'}</div></div>`;
+  }
+  if (risk) {
+    const r = riskRating ? riskRating[1] : '';
+    const cls = r === 'LOW' || r === 'VERY' ? 'risk-low' : r === 'MEDIUM' ? 'risk-med' : 'risk-high';
+    cards += `<div class="score-card"><div class="score-card-label">Risk Score</div><div class="score-card-value ${cls}">${parseFloat(risk[1]).toFixed(1)}</div><div class="score-card-sub">${r || '—'}</div></div>`;
+  }
+  if (opGrade) {
+    const g = opGrade[1];
+    const cls = g === 'PRIME' ? 'grade-a' : g === 'STRONG' ? 'grade-b' : g === 'MODERATE' ? 'grade-c' : 'grade-f';
+    cards += `<div class="score-card"><div class="score-card-label">Opportunity</div><div class="score-card-value ${cls}" style="font-size:16px;">${g}</div><div class="score-card-sub">Grade</div></div>`;
+  }
+  if (price) {
+    cards += `<div class="score-card"><div class="score-card-label">Median Price</div><div class="score-card-value" style="font-size:18px;">£${price[1]}</div><div class="score-card-sub">12 month</div></div>`;
+  }
+  return cards;
+}
+
+function showError(query, message) {
+  document.getElementById('content').innerHTML = `
+    <div class="response-wrap">
+      <div class="response-header">
+        <div class="response-tag" style="color:var(--red);border-color:rgba(255,77,77,0.2);background:rgba(255,77,77,0.05);">ERROR</div>
+        <div class="response-query">${query}</div>
+      </div>
+      <div class="error-box">${message}</div>
+    </div>`;
+}
+
+async function sendQuery() {
+  const input = document.getElementById('queryInput');
+  const query = input.value.trim();
+  if (!query) return;
+
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  showLoading(query);
+
+  const start = Date.now();
+  try {
+    const res = await fetch(`${API}?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    const elapsed = Date.now() - start;
+
+    if (data.status === 'OK') {
+      showResponse(query, data.response, elapsed);
+      addToHistory(query, elapsed);
+    } else {
+      showError(query, data.response || 'Unknown error');
+    }
+  } catch (e) {
+    showError(query, 'Connection failed. Is Quarkus running on port 8081?');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('queryInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendQuery();
+});
+
+renderQuickBtns();
+</script>
+</body>
+</html>

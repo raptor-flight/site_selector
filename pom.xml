@@ -12,7 +12,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
     <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-    <quarkus.platform.version>3.25.3</quarkus.platform.version>
+    <quarkus.platform.version>3.27.2</quarkus.platform.version>
     <skipITs>true</skipITs>
     <surefire-plugin.version>3.5.3</surefire-plugin.version>
   </properties>
@@ -69,6 +69,32 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-config-yaml</artifactId>
+    </dependency>
+
+
+    <!-- Database -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jdbc-postgresql</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-hibernate-orm-panache</artifactId>
+    </dependency>
+
+
+    <!-- Source: https://mvnrepository.com/artifact/io.quarkiverse.langchain4j/quarkus-langchain4j-core -->
+    <dependency>
+      <groupId>io.quarkiverse.langchain4j</groupId>
+      <artifactId>quarkus-langchain4j-core</artifactId>
+      <version>1.8.2</version>
+    </dependency>
+    <!-- Source: https://mvnrepository.com/artifact/io.quarkiverse.langchain4j/quarkus-langchain4j-ai-gemini -->
+    <dependency>
+      <groupId>io.quarkiverse.langchain4j</groupId>
+      <artifactId>quarkus-langchain4j-ai-gemini</artifactId>
+      <version>1.8.2</version>
+      <scope>compile</scope>
     </dependency>
 
   </dependencies>

@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgis/postgis:16-3.4
+    build: .
     container_name: proposiq-postgis
     environment:
       POSTGRES_DB: proposiq
@@ -16,6 +16,5 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-
 volumes:
   proposiq_pgdata:

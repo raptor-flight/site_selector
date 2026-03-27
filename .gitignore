@@ -31,3 +31,16 @@ replay_pid*
 propos-iq-infra/data/lookups/*.csv
 src/main/resources/data/hmlr/*.csv
 src/test/resources/hmlr/*.csv
+
+
+# Ignore large data directories
+data/SG_DataZoneBdry_2011/
+data/SG_DataZoneBdry_2022/
+data/features/
+data/geography-sdz2021-esri-shapefile/
+data/post-gis-backup/
+
+# Ignore notes and presentations
+notes/PropOS_Data_Architecture.pptx
+notes/PropOS_Investor_Deck.pptx
+

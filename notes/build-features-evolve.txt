@@ -101,8 +101,211 @@ docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT left(s.
 docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "CREATE TABLE IF NOT EXISTS ref.postcode_to_area (postcode_norm    TEXT PRIMARY KEY,  geo_type TEXT NOT NULL, external_code TEXT NOT NULL, geo_area_id UUID NOT NULL REFERENCES core.geo_area(geo_area_id), boundary_version TEXT NOT NULL, dataset_id UUID REFERENCES audit.dataset(dataset_id), assigned_at TIMESTAMPTZ NOT NULL DEFAULT now()); CREATE INDEX IF NOT EXISTS ix_postcode_to_area_geo_area ON ref.postcode_to_area (geo_area_id);CREATE INDEX IF NOT EXISTS ix_postcode_to_area_geo_type ON ref.postcode_to_area (geo_type);"
 
 
-docker run --rm -it -v "%cd%:/workspace" ghcr.io/osgeo/gdal:latest ogr2ogr ^
-  -f "PostgreSQL" PG:"host=host.docker.internal port=5432 dbname=proposiq user=proposiq password=proposiq_dev_pw" ^
-  /workspace/SOA2011.shp ^
-  -nln ref._staging_soa2011 ^
-  -lco GEOMETRY_NAME=geom
+docker container run --rm -it -v "%cd%:/workspace" ghcr.io/osgeo/gdal:latest ogr2ogr -f "PostgreSQL" PG:"host=host.docker.internal port=5432 dbname=proposiq user=proposiq password=proposiq_dev_pw" /workspace/SOA2011.shp -nln ref._staging_soa2011 -lco GEOMETRY_NAME=geom
+
+docker run --rm -it -v "%cd%:/workspace" ghcr.io/osgeo/gdal:latest ogr2ogr -f "PostgreSQL" PG:"host=host.docker.internal port=5432 dbname=proposiq user=proposiq password=proposiq_dev_pw" /workspace/SOA2011.shp -nln ref._staging_soa2011 -nlt MULTIPOLYGON -lco GEOMETRY_NAME=geom
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO audit.dataset (dataset_id, name, source, license, published_date, notes) VALUES (gen_random_uuid(), 'NISRA_SOA_2011', 'NISRA', 'Check NISRA licence / terms','2011-01-01','NI Super Output Areas (SOA) 2011 boundaries. Source SRID=29902 transformed to 27700.');"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.geo_boundary (boundary_id, geo_type, external_code, name, boundary_version, geom, dataset_id) SELECT gen_random_uuid(),'SOA', s.soa_code, s.soa_label,'2011', ST_Transform(ST_MakeValid(s.geom), 27700), (SELECT dataset_id FROM audit.dataset WHERE name='NISRA_SOA_2011' ORDER BY ingested_at DESC LIMIT 1)FROM ref._staging_soa2011 s;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO core.geo_area (geo_area_id, geo_type, external_code, label, boundary_version, geom, source_boundary_id) SELECT gen_random_uuid(), b.geo_type, b.external_code, b.name, b.boundary_version, b.geom, b.boundary_id FROM ref.geo_boundary b WHERE b.geo_type='SOA' AND b.boundary_version='2011'ON CONFLICT DO NOTHING;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) FROM core.geo_area WHERE geo_type='SOA' AND boundary_version='2011';"
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT ST_SRID(geom) AS srid, COUNT(*) FROM core.geo_area WHERE geo_type='SOA' AND boundary_version='2011' GROUP BY srid;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "CREATE TABLE IF NOT EXISTS ref.postcode_to_area (postcode_norm    TEXT PRIMARY KEY, geo_type TEXT NOT NULL, external_code    TEXT NOT NULL, geo_area_id      UUID NOT NULL REFERENCES core.geo_area(geo_area_id),  boundary_version TEXT NOT NULL, dataset_id UUID REFERENCES audit.dataset(dataset_id), assigned_at      TIMESTAMPTZ NOT NULL DEFAULT now()); CREATE INDEX IF NOT EXISTS ix_postcode_to_area_geo_area ON ref.postcode_to_area (geo_area_id); CREATE INDEX IF NOT EXISTS ix_postcode_to_area_geo_type ON ref.postcode_to_area (geo_type);"
+
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.postcode_to_area (postcode_norm, geo_type, external_code, geo_area_id, boundary_version, dataset_id) SELECT  regexp_replace(upper(s.pcds), '\s+', '', 'g') AS postcode_norm, 'LSOA' AS geo_type,  s.lsoa21cd AS external_code, ga.geo_area_id, '2021' AS boundary_version, (SELECT dataset_id FROM audit.dataset WHERE name='ONS_PCD_OA21_LSOA21_MSOA21_LAD_MAY25_UK_LU' ORDER BY ingested_at DESC LIMIT 1) FROM ingest._staging_postcode_bestfit s JOIN core.geo_area ga ON ga.geo_type='LSOA' AND ga.boundary_version='2021' AND ga.external_code = s.lsoa21cd WHERE s.pcds IS NOT NULL AND s.pcds <> '' AND s.lsoa21cd IS NOT NULL AND s.lsoa21cd <> '' AND left(s.lsoa21cd, 1) IN ('E','W') ON CONFLICT (postcode_norm) DO UPDATE SET geo_type = EXCLUDED.geo_type, external_code = EXCLUDED.external_code, geo_area_id = EXCLUDED.geo_area_id, boundary_version = EXCLUDED.boundary_version, dataset_id = EXCLUDED.dataset_id,assigned_at = now();"
+
+
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.postcode_to_area (postcode_norm, geo_type, external_code, geo_area_id, boundary_version, dataset_id) SELECT regexp_replace(upper(s.pcds), '\s+', '', 'g') AS postcode_norm, 'SOA' AS geo_type, s.lsoa21cd AS external_code, ga.geo_area_id,'2011' AS boundary_version, (SELECT dataset_id FROM audit.dataset WHERE name='ONS_PCD_OA21_LSOA21_MSOA21_LAD_MAY25_UK_LU' ORDER BY ingested_at DESC LIMIT 1) FROM ingest._staging_postcode_bestfit s JOIN core.geo_area ga ON ga.geo_type='SOA' AND ga.boundary_version='2011' AND ga.external_code = s.lsoa21cd WHERE s.pcds IS NOT NULL AND s.pcds <> '' AND s.lsoa21cd IS NOT NULL AND s.lsoa21cd <> ''ON CONFLICT (postcode_norm) DO UPDATE SET geo_type = EXCLUDED.geo_type, external_code = EXCLUDED.external_code, geo_area_id = EXCLUDED.geo_area_id, boundary_version = EXCLUDED.boundary_version, dataset_id = EXCLUDED.dataset_id, assigned_at = now();"
+
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT p.postcode_norm, p.geo_type, p.external_code, a.label FROM ref.postcode_to_area p JOIN core.geo_area a ON a.geo_area_id = p.geo_area_id LIMIT 10;"
+
+docker run --rm -it -v "%cd%:/workspace" ghcr.io/osgeo/gdal:latest ogr2ogr -f "PostgreSQL" PG:"host=host.docker.internal port=5432 dbname=proposiq user=proposiq password=proposiq_dev_pw" /workspace/SG_DataZone_Bdry_2022.shp -nln ref._staging_dz2022 -nlt MULTIPOLYGON -lco GEOMETRY_NAME=geom
+docker run --rm -it -v "%cd%:/workspace" ghcr.io/osgeo/gdal:latest ogr2ogr -f "PostgreSQL" PG:"host=host.docker.internal port=5432 dbname=proposiq user=proposiq password=proposiq_dev_pw" /workspace/SG_DataZone_Bdry_2022.shp -nln ref._staging_dz2022 -nlt MULTIPOLYGON -lco GEOMETRY_NAME=geom
+
+
+
+docker run --rm -it -v "%cd%:/workspace" ghcr.io/osgeo/gdal:latest ogr2ogr -f "PostgreSQL" PG:"host=host.docker.internal port=5432 dbname=proposiq user=proposiq password=proposiq_dev_pw" /workspace/SG_DataZone_Bdry_2022.shp -nln ref._staging_dz2022 -nlt MULTIPOLYGON -lco GEOMETRY_NAME=geom -lco PRECISION=NO
+
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.postcode_to_area (postcode_norm, geo_type, external_code, geo_area_id, boundary_version, dataset_id) SELECT regexp_replace(upper(s.pcds), '\s+', '', 'g') AS postcode_norm, ga.geo_type, ga.external_code, ga.geo_area_id, ga.boundary_version, (SELECT dataset_id FROM audit.dataset WHERE name='ONS_PCD_OA21_LSOA21_MSOA21_LAD_MAY25_UK_LU' ORDER BY ingested_at DESC LIMIT 1) FROM ingest._staging_postcode_bestfit s JOIN core.geo_area ga ON ga.external_code = s.lsoa21cd AND ((ga.geo_type='LSOA' AND ga.boundary_version='2021') OR (ga.geo_type='SOA'  AND ga.boundary_version='2011') OR (ga.geo_type='DZ'   AND ga.boundary_version='2022')) WHERE s.pcds IS NOT NULL AND s.pcds <> '' AND s.lsoa21cd IS NOT NULL AND s.lsoa21cd <> '' ON CONFLICT (postcode_norm) DO UPDATE SET geo_type = EXCLUDED.geo_type, external_code = EXCLUDED.external_code, geo_area_id = EXCLUDED.geo_area_id, boundary_version = EXCLUDED.boundary_version, dataset_id = EXCLUDED.dataset_id, assigned_at = now();"
+
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS area_codes_not_found FROM (SELECT DISTINCT lsoa21cd FROM ingest._staging_postcode_bestfit WHERE lsoa21cd IS NOT NULL AND lsoa21cd <> '') s LEFT JOIN core.geo_area ga ON ga.external_code = s.lsoa21cd AND ((ga.geo_type='LSOA' AND ga.boundary_version='2021') OR (ga.geo_type='SOA'  AND ga.boundary_version='2011') OR (ga.geo_type='DZ'   AND ga.boundary_version='2022')) WHERE ga.geo_area_id IS NULL;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS area_codes_not_found FROM (SELECT DISTINCT lsoa21cd FROM ingest._staging_postcode_bestfit WHERE lsoa21cd IS NOT NULL AND lsoa21cd <> '') s LEFT JOIN core.geo_area ga ON ga.external_code = s.lsoa21cd AND ((ga.geo_type='LSOA' AND ga.boundary_version='2021') OR (ga.geo_type='SOA'  AND ga.boundary_version='2011') OR (ga.geo_type='DZ'   AND ga.boundary_version='2022')) WHERE ga.geo_area_id IS NULL;"
+
+
+docker run --rm -it -v "%cd%:/workspace" ghcr.io/osgeo/gdal:latest ogr2ogr -f "PostgreSQL" PG:"host=host.docker.internal port=5432 dbname=proposiq user=proposiq password=proposiq_dev_pw" /workspace/SG_DataZone_Bdry_2022.shp -nln ref._staging_dz2022 -nlt MULTIPOLYGON -lco GEOMETRY_NAME=geom -select "dzcode,dzname"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.geo_boundary (boundary_id, geo_type, external_code, name, boundary_version, geom, dataset_id) SELECT gen_random_uuid(), 'DZ', s.dzcode, s.dzname, '2022', ST_MakeValid(s.geom), (SELECT dataset_id FROM audit.dataset WHERE name='SG_DATAZONE_2022' ORDER BY ingested_at DESC LIMIT 1) FROM ref._staging_dz2022 s;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO core.geo_area (geo_area_id, geo_type, external_code, label, boundary_version, geom, source_boundary_id) SELECT gen_random_uuid(), b.geo_type, b.external_code, b.name, b.boundary_version, b.geom, b.boundary_id FROM ref.geo_boundary b WHERE b.geo_type='DZ' AND b.boundary_version='2022'ON CONFLICT DO NOTHING;"
+
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "
+SELECT COUNT(*) AS area_codes_not_found
+FROM (
+  SELECT DISTINCT lsoa21cd
+  FROM ingest._staging_postcode_bestfit
+  WHERE lsoa21cd IS NOT NULL AND lsoa21cd <> ''
+) s
+LEFT JOIN core.geo_area ga
+  ON ga.external_code = s.lsoa21cd
+ AND (
+      (ga.geo_type='LSOA' AND ga.boundary_version='2021') OR
+      (ga.geo_type='SOA'  AND ga.boundary_version='2011') OR
+      (ga.geo_type='DZ'   AND ga.boundary_version='2022')
+ )
+WHERE ga.geo_area_id IS NULL;
+"
+
+
+
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT left(lsoa21cd, 2) AS prefix2, left(lsoa21cd, 1) AS prefix1, COUNT(DISTINCT lsoa21cd) AS distinct_codes FROM ingest._staging_postcode_bestfit s LEFT JOIN core.geo_area ga ON ga.external_code = s.lsoa21cd AND ((ga.geo_type='LSOA' AND ga.boundary_version='2021') OR (ga.geo_type='SOA'  AND ga.boundary_version='2011') OR (ga.geo_type='DZ'   AND ga.boundary_version='2022')) WHERE s.lsoa21cd IS NOT NULL AND s.lsoa21cd <> '' AND ga.geo_area_id IS NULL GROUP BY 1,2 ORDER BY distinct_codes DESC;"
+
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT s.lsoa21cd, COUNT(*) AS postcode_rows FROM ingest._staging_postcode_bestfit s LEFT JOIN core.geo_area ga  ON ga.external_code = s.lsoa21cd AND ((ga.geo_type='LSOA' AND ga.boundary_version='2021') OR (ga.geo_type='SOA'  AND ga.boundary_version='2011') OR (ga.geo_type='DZ'   AND ga.boundary_version='2022')) WHERE ga.geo_area_id IS NULL AND s.lsoa21cd LIKE 'N%' GROUP BY s.lsoa21cd ORDER BY postcode_rows DESC LIMIT 20;"
+
+
+docker exec -it proposiq-postgis bash -lc "shp2pgsql -I /data/geography-sdz2021-esri-shapefile/SDZ2021.shp ingest._staging_sdz2021_raw | psql -U proposiq -d proposiq"
+
+docker run --rm -it -v "%cd%:/workspace" ghcr.io/osgeo/gdal:latest ogrinfo -so /workspace/SDZ2021.shp SDZ2021
+
+docker run --rm -it -v "%cd%:/workspace" ghcr.io/osgeo/gdal:latest ogr2ogr -overwrite -f "PostgreSQL" PG:"host=host.docker.internal port=5432 dbname=proposiq user=proposiq password=proposiq_dev_pw" /workspace/SDZ2021.shp -nln ref._staging_sdz2021 -nlt MULTIPOLYGON -lco GEOMETRY_NAME=geom -select "SDZ2021_cd,SDZ2021_nm"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.geo_boundary (boundary_id, geo_type, external_code, name, boundary_version, geom) SELECT gen_random_uuid() AS boundary_id, 'SDZ'AS geo_type, TRIM(s.\"SDZ2021_cd\") AS external_code, NULLIF(TRIM(s.\"SDZ2021_nm\"), '') AS name,'2021' AS boundary_version, ST_Multi(ST_MakeValid(  ST_Transform(s.geom, 27700))) AS geom FROM ref._staging_sdz2021 s ON CONFLICT DO NOTHING;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.geo_boundary (boundary_id, geo_type, external_code, name, boundary_version, geom) SELECT gen_random_uuid() AS boundary_id, 'SDZ' AS geo_type, TRIM(s.sdz2021_cd) AS external_code, NULLIF(TRIM(s.sdz2021_nm), '') AS name, '2021' AS boundary_version, ST_Multi(ST_MakeValid(ST_Transform(s.geom, 27700))) AS geom FROM ref._staging_sdz2021 s ON CONFLICT DO NOTHING;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO core.geo_area (geo_area_id, geo_type, external_code, label, boundary_version, geom, source_boundary_id) SELECT gen_random_uuid(), b.geo_type, b.external_code, b.name, b.boundary_version, b.geom, b.boundary_id FROM ref.geo_boundary b WHERE b.geo_type='SDZ' AND b.boundary_version='2021' ON CONFLICT DO NOTHING;"
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT s.lsoa21cd, COUNT(*) AS postcode_rows FROM ingest._staging_postcode_bestfit s LEFT JOIN core.geo_area ga ON ga.external_code = s.lsoa21cd AND ((ga.geo_type='LSOA' AND ga.boundary_version='2021') OR (ga.geo_type='SOA'  AND ga.boundary_version='2011') OR (ga.geo_type='DZ'   AND ga.boundary_version='2022') OR (ga.geo_type='SDZ'  AND ga.boundary_version='2021')) WHERE ga.geo_area_id IS NULL AND s.lsoa21cd LIKE 'N%'GROUP BY s.lsoa21cd ORDER BY postcode_rows DESC LIMIT 50;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT (SELECT COUNT(*) FROM ref.geo_boundary WHERE geo_type='SDZ' AND boundary_version='2021') AS ref_boundary_sdz, (SELECT COUNT(*) FROM core.geo_area   WHERE geo_type='SDZ' AND boundary_version='2021') AS core_area_sdz;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT s.lsoa21cd, COUNT(*) AS postcode_rows FROM ingest._staging_postcode_bestfit s LEFT JOIN core.geo_area ga ON ga.external_code = s.lsoa21cd AND ((ga.geo_type='LSOA' AND ga.boundary_version='2021') OR (ga.geo_type='SOA'  AND ga.boundary_version='2011') OR (ga.geo_type='DZ'   AND ga.boundary_version='2022') OR (ga.geo_type='SDZ'  AND ga.boundary_version='2021')) WHERE ga.geo_area_id IS NULL GROUP BY s.lsoa21cd ORDER BY postcode_rows DESC LIMIT 50;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) FILTER (WHERE lsoa21cd IS NULL) AS nulls,  COUNT(*) FILTER (WHERE lsoa21cd IS NOT NULL AND BTRIM(lsoa21cd)='') AS blanks,  COUNT(*) FILTER (WHERE lsoa21cd='L99999999')           AS l999,  COUNT(*) FILTER (WHERE lsoa21cd='M99999999')           AS m999,  COUNT(*) AS total_rows FROM ingest._staging_postcode_bestfit;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "UPDATE ingest._staging_postcode_bestfit SET lsoa21cd = NULL WHERE BTRIM(lsoa21cd) = '';"
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "UPDATE ingest._staging_postcode_bestfit SET lsoa21cd = NULL WHERE lsoa21cd IN ('L99999999','M99999999');"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT s.lsoa21cd, COUNT(*) AS postcode_rows FROM ingest._staging_postcode_bestfit s LEFT JOIN core.geo_area ga  ON ga.external_code = s.lsoa21cd AND ((ga.geo_type='LSOA' AND ga.boundary_version='2021') OR (ga.geo_type='SOA'  AND ga.boundary_version='2011') OR (ga.geo_type='DZ'   AND ga.boundary_version='2022') OR (ga.geo_type='SDZ'  AND ga.boundary_version='2021')) WHERE ga.geo_area_id IS NULL AND s.lsoa21cd IS NOT NULL AND s.lsoa21cd NOT IN ('L99999999','M99999999') GROUP BY s.lsoa21cd ORDER BY postcode_rows DESC LIMIT 50;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT n.nspname, c.relname, c.relkind FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind IN ('v','m') AND (pg_get_viewdef(c.oid) ILIKE '%_staging_postcode_bestfit%' OR pg_get_viewdef(c.oid) ILIKE '%postcode%') ORDER BY 1,2;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT n.nspname AS schema, p.proname AS function_name FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE pg_get_functiondef(p.oid) ILIKE '%_staging_postcode_bestfit%' ORDER BY 1,2;"
+
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO audit.dataset (dataset_id, name, source, license, published_date, notes) VALUES (gen_random_uuid(), 'NISRA_SDZ_2021', 'NISRA', 'OGL', '2023-02-21',  'Northern Ireland Super Data Zones (Census 2021) boundaries');"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.geo_boundary (boundary_id, geo_type, external_code, name, boundary_version, geom, dataset_id) SELECT gen_random_uuid(), 'SDZ', s.sdz2021_cd, s.sdz2021_nm, '2021', ST_MakeValid(s.geom), (SELECT dataset_id FROM audit.dataset WHERE name='NISRA_SDZ_2021' ORDER BY ingested_at DESC LIMIT 1) FROM ref._staging_sdz2021 s;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT n.nspname AS schema, p.proname AS function_name FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE p.prokind = 'f'  AND pg_get_functiondef(p.oid) ILIKE '%_staging_postcode_bestfit%' ORDER BY 1,2;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT n.nspname AS schema, p.proname AS function_name FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE p.prokind = 'f'  AND pg_get_functiondef(p.oid) ILIKE '%postcode%' ORDER BY 1,2;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT n.nspname, c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind='r' AND (c.relname ILIKE '%postcode%' OR c.relname ILIKE '%pcd%' OR c.relname ILIKE '%bestfit%' OR c.relname ILIKE '%oa21%') ORDER BY 1,2;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "\d ref.postcode_to_area"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "TRUNCATE ref.postcode_to_area; INSERT INTO ref.postcode_to_area(postcode_norm, geo_type, external_code, geo_area_id, boundary_version, dataset_id) SELECT  s.pcds AS postcode_norm,  ga.geo_type AS geo_type,  s.lsoa21cd AS external_code,  ga.geo_area_id  AS geo_area_id,  ga.boundary_version  AS boundary_version,  NULL::uuid   AS dataset_id FROM ingest._staging_postcode_bestfit s JOIN core.geo_area ga ON ga.external_code = s.lsoa21cd AND ((ga.geo_type='LSOA' AND ga.boundary_version='2021') OR (ga.geo_type='SOA'  AND ga.boundary_version='2011') OR (ga.geo_type='DZ'   AND ga.boundary_version='2022') OR (ga.geo_type='SDZ'  AND ga.boundary_version='2021')) WHERE s.lsoa21cd IS NOT NULL AND s.lsoa21cd NOT IN ('L99999999','M99999999');"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT geo_type, boundary_version, COUNT(*) AS n FROM ref.postcode_to_area WHERE geo_type='SDZ' GROUP BY 1,2 ORDER BY 2;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT geo_type, boundary_version, COUNT(*) AS n FROM ref.postcode_to_area WHERE external_code LIKE 'N2100%' GROUP BY 1,2;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS ni_sdz_postcodes FROM ref.postcode_to_lsoa WHERE lsoa21cd LIKE 'N2100%';"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "TRUNCATE ref.postcode_to_lsoa; INSERT INTO ref.postcode_to_lsoa  (postcode_norm, lsoa21cd, geo_area_id, boundary_version, dataset_id) SELECT p.postcode_norm, p.external_code AS lsoa21cd, p.geo_area_id, '2021' AS boundary_version, p.dataset_id FROM ref.postcode_to_area p WHERE p.boundary_version = '2021'  AND p.geo_type IN ('LSOA','SDZ');"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS ni_sdz_postcodes FROM ref.postcode_to_lsoa WHERE lsoa21cd LIKE 'N2100%';"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT ga.geo_type, ga.boundary_version, COUNT(*) AS postcodes FROM ref.postcode_to_lsoa p JOIN core.geo_area ga ON ga.geo_area_id = p.geo_area_id GROUP BY 1,2 ORDER BY 1,2;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT lsoa21cd, COUNT(*) FROM ref.postcode_to_lsoa WHERE lsoa21cd IN ('L99999999','M99999999') GROUP BY 1;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT s.lsoa21cd, COUNT(*) AS postcode_rows FROM ingest._staging_postcode_bestfit s LEFT JOIN ref.postcode_to_lsoa p ON p.postcode_norm = s.pcds WHERE s.lsoa21cd IS NOT NULL AND s.lsoa21cd NOT IN ('L99999999','M99999999') AND p.postcode_norm IS NULL GROUP BY s.lsoa21cd ORDER BY postcode_rows DESC LIMIT 50;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO audit.dataset (dataset_id, name, source, license, published_date, notes) VALUES ( gen_random_uuid(), 'SG_DZ_2011', 'Scottish Government', 'OGL', '2021-10-04', 'Scotland Data Zones (2011) boundaries');"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.geo_boundary (boundary_id, geo_type, external_code, name, boundary_version, geom, dataset_id) SELECT gen_random_uuid(),  'DZ',  s.DataZone,  s.Name, '2011', ST_MakeValid(s.geom), (SELECT dataset_id FROM audit.dataset WHERE name='SG_DZ_2011' ORDER BY ingested_at DESC LIMIT 1) FROM ref._staging_dz2011_scot s;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO core.geo_area (geo_area_id, geo_type, external_code, label, boundary_version, geom, source_boundary_id) SELECT gen_random_uuid(), b.geo_type, b.external_code, b.name, b.boundary_version, b.geom,   b.boundary_id FROM ref.geo_boundary b WHERE b.geo_type='DZ' AND b.boundary_version='2011' ON CONFLICT DO NOTHING;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "TRUNCATE ref.postcode_to_lsoa; INSERT INTO ref.postcode_to_lsoa (postcode_norm, lsoa21cd, geo_area_id, boundary_version, dataset_id) SELECT p.postcode_norm,  p.external_code,  p.geo_area_id,  p.boundary_version,  p.dataset_id FROM ref.postcode_to_area p WHERE (p.geo_type='LSOA' AND p.boundary_version='2021') OR (p.geo_type='SDZ'  AND p.boundary_version='2021')  OR (p.geo_type='DZ'   AND p.boundary_version='2011');"
+
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.postcode_to_area (postcode_norm, geo_type, external_code, geo_area_id, boundary_version, dataset_id) SELECT  regexp_replace(upper(s.pcds), '\s+', '', 'g') AS postcode_norm,  'DZ' AS geo_type,  s.lsoa21cd AS external_code,  ga.geo_area_id, '2011' AS boundary_version, (SELECT dataset_id FROM audit.dataset WHERE name='ONS_PCD_OA_LSOA_MSOA_LAD_MAY25_UK_LU' ORDER BY ingested_at DESC LIMIT 1) AS dataset_id FROM ingest._staging_postcode_bestfit s JOIN core.geo_area ga ON ga.geo_type='DZ' AND ga.boundary_version='2011' AND ga.external_code = s.lsoa21cd WHERE s.pcds IS NOT NULL AND s.pcds <> '' AND s.lsoa21cd LIKE 'S010%' ON CONFLICT (postcode_norm) DO UPDATE SET geo_type = EXCLUDED.geo_type, external_code = EXCLUDED.external_code, geo_area_id = EXCLUDED.geo_area_id, boundary_version = EXCLUDED.boundary_version, dataset_id = EXCLUDED.dataset_id, assigned_at = now();"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "TRUNCATE ref.postcode_to_lsoa; INSERT INTO ref.postcode_to_lsoa (postcode_norm, lsoa21cd, geo_area_id, boundary_version, dataset_id) SELECT  p.postcode_norm,  p.external_code,  p.geo_area_id,  p.boundary_version,  p.dataset_id FROM ref.postcode_to_area p WHERE (p.geo_type='LSOA' AND p.boundary_version='2021') OR (p.geo_type='SDZ'  AND p.boundary_version='2021')  OR (p.geo_type='DZ'   AND p.boundary_version='2011');"
+
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS s010_in_lsoa21cd FROM ingest._staging_postcode_bestfit WHERE lsoa21cd LIKE 'S010%';"
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS s010_in_oa21cd  FROM ingest._staging_postcode_bestfit WHERE oa21cd  LIKE 'S010%';"
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS s010_in_msoa21cd FROM ingest._staging_postcode_bestfit WHERE msoa21cd LIKE 'S010%';"
+
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS join_matches FROM ingest._staging_postcode_bestfit s JOIN core.geo_area ga ON ga.geo_type='DZ' AND ga.boundary_version='2011' AND ga.external_code = s.lsoa21cd WHERE s.lsoa21cd LIKE 'S010%';"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT MIN(length(external_code)) AS min_len, MAX(length(external_code)) AS max_len, COUNT(*) AS dz_count FROM core.geo_area WHERE geo_type='DZ' AND boundary_version='2011';"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT external_code, length(external_code) AS len FROM core.geo_area WHERE geo_type='DZ' AND boundary_version='2011'ORDER BY len DESC LIMIT 10;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.postcode_to_area (postcode_norm, geo_type, external_code, geo_area_id, boundary_version, dataset_id) SELECT  regexp_replace(upper(s.pcds), '\s+', '', 'g') AS postcode_norm, 'DZ' AS geo_type, btrim(s.lsoa21cd) AS external_code, ga.geo_area_id, '2011' AS boundary_version, (SELECT dataset_id FROM audit.dataset  WHERE name='ONS_PCD_OA_LSOA_MSOA_LAD_MAY25_UK_LU'   ORDER BY ingested_at DESC   LIMIT 1) FROM ingest._staging_postcode_bestfit s JOIN core.geo_area ga  ON ga.geo_type='DZ' AND ga.boundary_version='2011' AND btrim(ga.external_code) = btrim(s.lsoa21cd) WHERE s.pcds IS NOT NULL AND s.pcds <> ''  AND s.lsoa21cd LIKE 'S010%' ON CONFLICT (postcode_norm) DO UPDATE SET geo_type = EXCLUDED.geo_type,  external_code = EXCLUDED.external_code,  geo_area_id = EXCLUDED.geo_area_id,  boundary_version = EXCLUDED.boundary_version,  dataset_id = EXCLUDED.dataset_id,  assigned_at = now();"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "TRUNCATE ref.postcode_to_lsoa; INSERT INTO ref.postcode_to_lsoa (postcode_norm, lsoa21cd, geo_area_id, boundary_version, dataset_id) SELECT p.postcode_norm, p.external_code, p.geo_area_id, p.boundary_version, p.dataset_id FROM ref.postcode_to_area p WHERE (p.geo_type='LSOA' AND p.boundary_version='2021')  OR (p.geo_type='SDZ'  AND p.boundary_version='2021')   OR (p.geo_type='DZ'   AND p.boundary_version='2011');"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT MIN(length(lsoa21cd)) AS min_len,  MAX(length(lsoa21cd)) AS max_len,  MIN(octet_length(lsoa21cd)) AS min_bytes, MAX(octet_length(lsoa21cd)) AS max_bytes FROM ingest._staging_postcode_bestfit WHERE lsoa21cd LIKE 'S010%';"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT lsoa21cd,  length(lsoa21cd) AS len,  octet_length(lsoa21cd) AS bytes,  encode(convert_to(lsoa21cd,'UTF8'),'hex') AS hex FROM ingest._staging_postcode_bestfit WHERE lsoa21cd LIKE 'S010%' LIMIT 10;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "WITH cleaned AS (SELECT  regexp_replace(upper(s.pcds), '\s+', '', 'g') AS postcode_norm, regexp_replace(upper(s.lsoa21cd), '[^A-Z0-9]', '', 'g') AS dz_code,  (SELECT dataset_id FROM audit.dataset WHERE name='ONS_PCD_OA_LSOA_MSOA_LAD_MAY25_UK_LU' ORDER BY ingested_at DESC LIMIT 1) AS dataset_id FROM ingest._staging_postcode_bestfit s  WHERE s.pcds IS NOT NULL AND s.pcds <> ''  AND s.lsoa21cd LIKE 'S010%') INSERT INTO ref.postcode_to_area (postcode_norm, geo_type, external_code, geo_area_id, boundary_version, dataset_id) SELECT  c.postcode_norm,  'DZ' AS geo_type, c.dz_code AS external_code, ga.geo_area_id, '2011' AS boundary_version, c.dataset_id FROM cleaned c JOIN core.geo_area ga ON ga.geo_type='DZ' AND ga.boundary_version='2011' AND regexp_replace(upper(ga.external_code), '[^A-Z0-9]', '', 'g') = c.dz_code ON CONFLICT (postcode_norm) DO UPDATE SET geo_type = EXCLUDED.geo_type,  external_code = EXCLUDED.external_code,  geo_area_id = EXCLUDED.geo_area_id,  boundary_version = EXCLUDED.boundary_version,  dataset_id = EXCLUDED.dataset_id,  assigned_at = now();"
+
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "TRUNCATE ref.postcode_to_lsoa; INSERT INTO ref.postcode_to_lsoa (postcode_norm, lsoa21cd, geo_area_id, boundary_version, dataset_id) SELECT p.postcode_norm, p.external_code, p.geo_area_id, p.boundary_version, p.dataset_id FROM ref.postcode_to_area p WHERE (p.geo_type='LSOA' AND p.boundary_version='2021') OR (p.geo_type='SDZ'  AND p.boundary_version='2021')  OR (p.geo_type='DZ'   AND p.boundary_version='2011');"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS scot_dz_postcodes FROM ref.postcode_to_lsoa WHERE lsoa21cd LIKE 'S010%';"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(DISTINCT lsoa21cd) AS distinct_s010_codes FROM ingest._staging_postcode_bestfit WHERE lsoa21cd LIKE 'S010%';"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS overlap FROM (  SELECT DISTINCT lsoa21cd AS code  FROM ingest._staging_postcode_bestfit  WHERE lsoa21cd LIKE 'S010%') s JOIN ( SELECT DISTINCT external_code AS code FROM core.geo_area  WHERE geo_type='DZ' AND boundary_version='2011') dz USING (code);"
+
+docker run --rm -it -v "%cd%:/workspace" ghcr.io/osgeo/gdal:latest ogr2ogr  -overwrite -f "PostgreSQL" PG:"host=host.docker.internal port=5432 dbname=proposiq user=proposiq password=proposiq_dev_pw" /workspace/SG_DataZone_Bdry_2022.shp -nln ref._staging_dz2022 -nlt MULTIPOLYGON -lco GEOMETRY_NAME=geom -select "dzcode,dzname"
+
+docker run --rm -it -v "%cd%:/workspace" ghcr.io/osgeo/gdal:latest ogr2ogr -overwrite -f "PostgreSQL" PG:"host=host.docker.internal port=5432 dbname=proposiq user=proposiq password=proposiq_dev_pw" /workspace/SG_DataZone_Bdry_2022.shp -nln ref._staging_dz2022 -nlt MULTIPOLYGON -lco GEOMETRY_NAME=geom -select "dzcode,dzname"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS join_matches FROM (SELECT DISTINCT lsoa21cd FROM ingest._staging_postcode_bestfit WHERE lsoa21cd LIKE 'S010%') s JOIN ref._staging_dz2022 dz ON dz.dzcode = s.lsoa21cd;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "CREATE EXTENSION IF NOT EXISTS pgcrypto; INSERT INTO audit.dataset (dataset_id, name, source, license, published_date, notes) VALUES ( gen_random_uuid(), 'SG_DZ_2022', 'Scottish Government', 'OGL', '2025-10-23', 'Scotland Data Zones (2022) boundaries (SG_DataZone_Bdry_2022)');"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.geo_boundary (boundary_id, geo_type, external_code, name, boundary_version, geom, dataset_id) SELECT gen_random_uuid(), 'DZ', dz.dzcode, dz.dzname, '2022', ST_MakeValid(dz.geom), (SELECT dataset_id FROM audit.dataset WHERE name='SG_DZ_2022' ORDER BY ingested_at DESC LIMIT 1) FROM ref._staging_dz2022 dz;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.geo_boundary (boundary_id, geo_type, external_code, name, boundary_version, geom, dataset_id) SELECT gen_random_uuid(), 'DZ', dz.dzcode, dz.dzname, '2022', ST_MakeValid(dz.geom), (SELECT dataset_id FROM audit.dataset WHERE name='SG_DZ_2022' ORDER BY ingested_at DESC LIMIT 1) FROM ref._staging_dz2022 dz ON CONFLICT (geo_type, external_code, boundary_version) DO NOTHING;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) FROM ref.geo_boundary WHERE geo_type='DZ' AND boundary_version='2022';"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "DELETE FROM core.geo_area WHERE geo_type='DZ' AND boundary_version='2022'; DELETE FROM ref.geo_boundary WHERE geo_type='DZ' AND boundary_version='2022';"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS geo_boundary_dz2022 FROM ref.geo_boundary WHERE geo_type='DZ' AND boundary_version='2022';"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS geo_area_dz2022 FROM core.geo_area WHERE geo_type='DZ' AND boundary_version='2022';"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "INSERT INTO ref.postcode_to_area (postcode_norm, geo_type, external_code, geo_area_id, boundary_version, dataset_id) SELECT regexp_replace(upper(s.pcds), '\s+', '', 'g') AS postcode_norm, 'DZ' AS geo_type, s.lsoa21cd AS external_code, ga.geo_area_id, '2022' AS boundary_version, (SELECT dataset_id FROM audit.dataset WHERE name='ONS_PCD_OA_LSOA_MSOA_LAD_MAY25_UK_LU' ORDER BY ingested_at DESC  LIMIT 1) AS dataset_id FROM ingest._staging_postcode_bestfit s JOIN core.geo_area ga  ON ga.geo_type='DZ' AND ga.boundary_version='2022' AND ga.external_code = s.lsoa21cd WHERE s.pcds IS NOT NULL AND s.pcds <> ''  AND s.lsoa21cd LIKE 'S010%' ON CONFLICT (postcode_norm) DO UPDATE SET geo_type = EXCLUDED.geo_type, external_code = EXCLUDED.external_code, geo_area_id = EXCLUDED.geo_area_id, boundary_version = EXCLUDED.boundary_version,  dataset_id = EXCLUDED.dataset_id,  assigned_at = now();"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT geo_type, boundary_version, COUNT(*) FROM ref.postcode_to_area WHERE geo_type='DZ' AND boundary_version='2022' GROUP BY 1,2;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "TRUNCATE ref.postcode_to_lsoa; INSERT INTO ref.postcode_to_lsoa(postcode_norm, lsoa21cd, geo_area_id, boundary_version, dataset_id) SELECT p.postcode_norm,  p.external_code,  p.geo_area_id,  p.boundary_version,  p.dataset_id FROM ref.postcode_to_area p WHERE (p.geo_type='LSOA' AND p.boundary_version='2021') OR (p.geo_type='SDZ'  AND p.boundary_version='2021') OR (p.geo_type='DZ'   AND p.boundary_version='2022');"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT COUNT(*) AS scot_dz_postcodes FROM ref.postcode_to_lsoa WHERE lsoa21cd LIKE 'S010%';"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "SELECT ga.geo_type,  ga.boundary_version, COUNT(*) AS postcodes FROM ref.postcode_to_lsoa p JOIN core.geo_area ga ON ga.geo_area_id = p.geo_area_id GROUP BY 1,2 ORDER BY 1,2;"
+
+docker exec -it proposiq-postgis psql -U proposiq -d proposiq -c "CREATE OR REPLACE VIEW ref.v_postcode_small_area AS SELECT p.postcode_norm, ga.geo_type, ga.external_code AS area_code, ga.label AS area_name, ga.boundary_version, p.dataset_id, p.assigned_at FROM ref.postcode_to_lsoa p JOIN core.geo_area ga ON ga.geo_area_id = p.geo_area_id;"

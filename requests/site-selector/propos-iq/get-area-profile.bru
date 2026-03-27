@@ -1,0 +1,19 @@
+meta {
+  name: get-area-profile
+  type: http
+  seq: 1
+}
+
+get {
+  url: http://localhost:8081/propos-iq/propos/query?q=What+is+the+investment+potential+of+B38+8DR+Birmingham
+  body: none
+  auth: inherit
+}
+
+params:query {
+  q: What+is+the+investment+potential+of+B38+8DR+Birmingham
+}
+
+settings {
+  encodeUrl: true
+}

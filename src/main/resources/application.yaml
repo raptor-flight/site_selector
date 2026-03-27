@@ -2,12 +2,53 @@ quarkus:
   banner:
     path: banner.txt
     enabled: true
+
   http:
     port: 8081
-    root-path: /site-selector
+    root-path: /propos-iq
+    cors:
+      ~: true
+      origins: "*"
+
   log:
+    level: ERROR
     console:
-      color: true
-      level: INFO
+      level: DEBUG
+    category:
+      "io.quarkus":
+        min-level: INFO
+        level: INFO
+      "com.propos.iq":
+        min-level: DEBUG
+        level: DEBUG
+      "dev.langchain4j":
+        min-level: INFO
+        level: INFO
+      "io.quarkus.bootstrap.classloading":
+        min-level: INFO
+        level: INFO
 
+  langchain4j:
+    timeout: 60s
+    ai:
+      gemini:
+        api-key: ${GEMINI_API_KEY}
+        log-requests: true
+        log-responses: true
+        chat-model:
+          model-id: gemini-2.5-flash
+          temperature: 0.1
+          top-p: 0.95
+          top-k: 40
+          max-output-tokens: 2048
+          log-requests: true
+          log-responses: true
 
+  datasource:
+    db-kind: postgresql
+    username: proposiq
+    password: proposiq_dev_pw
+    jdbc:
+      url: jdbc:postgresql://localhost:5432/proposiq
+    devservices:
+      enabled: false
