@@ -5,15 +5,16 @@ meta {
 }
 
 get {
-  url: http://localhost:8081/propos-iq/propos/query?q=What+is+the+investment+potential+of+B38+8DR+Birmingham
+  url: http://localhost:8081/propos-iq/propos/query?q=Show me areas with WORSENING crime trends in Birmingham
   body: none
   auth: inherit
 }
 
 params:query {
-  q: What+is+the+investment+potential+of+B38+8DR+Birmingham
+  q: Show me areas with WORSENING crime trends in Birmingham
 }
 
 settings {
   encodeUrl: true
+  timeout: 0
 }

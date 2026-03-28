@@ -9,5 +9,13 @@ public record AreaMarket(
         BigDecimal valueGapPct,
         BigDecimal priceCv,
         BigDecimal medianPrice24m,
-        Integer transactionCount
+        Integer transactionCount,
+        Integer transactionCount24m,
+        String priceTrend,
+        BigDecimal newBuildPct,
+        BigDecimal freeholdPct,
+        BigDecimal medianPriceDetached,
+        BigDecimal medianPriceSemi,
+        BigDecimal medianPriceTerraced,
+        BigDecimal medianPriceFlat
 ) {}

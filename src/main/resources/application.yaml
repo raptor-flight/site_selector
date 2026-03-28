@@ -1,4 +1,7 @@
 quarkus:
+  thread-pool:
+    core-threads: 300
+    max-threads: 300
   banner:
     path: banner.txt
     enabled: true
@@ -6,6 +9,8 @@ quarkus:
   http:
     port: 8081
     root-path: /propos-iq
+    idle-timeout: 300s
+    read-timeouts: 300s
     cors:
       ~: true
       origins: "*"
@@ -29,7 +34,7 @@ quarkus:
         level: INFO
 
   langchain4j:
-    timeout: 60s
+    timeout: 120s
     ai:
       gemini:
         api-key: ${GEMINI_API_KEY}
@@ -40,9 +45,12 @@ quarkus:
           temperature: 0.1
           top-p: 0.95
           top-k: 40
-          max-output-tokens: 2048
+          max-output-tokens: 8192
           log-requests: true
           log-responses: true
+    chat-memory:
+      type: message-window
+      max-messages: 10
 
   datasource:
     db-kind: postgresql
