@@ -4,6 +4,8 @@ package com.propos.iq.ai;
 import com.propos.iq.domain.dao.AreaIntelligenceDAO;
 import com.propos.iq.domain.model.features.AreaAmenityNames;
 import com.propos.iq.domain.model.features.AreaProfile;
+import com.propos.iq.domain.model.features.OwnershipProfile;
+import com.propos.iq.domain.model.features.PpdHistory;
 import dev.langchain4j.agent.tool.Tool;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -169,4 +171,50 @@ public class PropOSTools {
         logger.infof("Tool called: findOpportunitiesByDistrict(%s)", district);
         return this.areaIntelligenceDAO.findOpportunitiesByDistrict(district);
     }
+
+    @Tool("""
+            Get the full 30-year property price history for an area.
+            Use when the user asks about historical prices, long-term price trends,
+            price growth over time, or transaction volumes.
+            Examples: "what have prices done in B38 8DR over the last 5 years?",
+            "show me the price history for SW1A", "how much have prices grown in E1?",
+            "what is the median house price history for E01004736?",
+            "how many properties sold in LS1 last year?".
+            Accepts THREE input formats — auto-detected:
+              1. Full postcode  (e.g. "B38 8DR", "SW1A 2AA")  — returns single LSOA history
+              2. District postcode (e.g. "B38", "SW1", "M1")  — returns aggregated district history
+              3. LSOA code (e.g. "E01004736", "E01000206")    — returns direct LSOA history
+            Returns: all-time median price, 5-year median, 1-year median, total transaction count,
+            transactions in last 12 months (liquidity), 5-year price growth %, property type
+            breakdown (detached/semi/terraced/flat counts), new build count.
+            Parameter: location — full postcode, district postcode, or LSOA code.
+            """)
+    public PpdHistory getPpdHistory(String location) {
+        logger.infof("Tool called: getPpdHistory(%s)", location);
+        return this.areaIntelligenceDAO.getPpdHistory(location);
+    }
+
+    @Tool("""
+            Get corporate and overseas ownership data for an area.
+            Use when the user asks about who owns properties, corporate landlords,
+            overseas investors, foreign ownership, company ownership, or institutional buyers.
+            Examples: "who owns properties in W1?", "how much overseas ownership is there in SW1A 2AA?",
+            "show me corporate ownership in E1", "which countries own property in Kensington?",
+            "how many properties in B38 are owned by companies?".
+            Accepts THREE input formats — auto-detected:
+              1. Full postcode  (e.g. "B38 8DR", "SW1A 2AA")  — returns single LSOA profile
+              2. District postcode (e.g. "B38", "SW1", "M1")  — returns aggregated district profile
+              3. LSOA code (e.g. "E01004736")                 — returns direct LSOA profile
+            Returns: total UK corporate titles (CCOD), freehold/leasehold split,
+            unique company count, overseas titles (OCOD), top overseas country,
+            number of distinct overseas countries.
+            Note: corporate titles and overseas titles come from separate HMLR datasets
+            and are additive — a property may appear in both counts.
+            Parameter: location — full postcode, district postcode, or LSOA code.
+            """)
+    public OwnershipProfile getOwnershipProfile(String location) {
+        logger.infof("Tool called: getOwnershipProfile(%s)", location);
+        return this.areaIntelligenceDAO.getOwnershipProfile(location);
+    }
+
 }

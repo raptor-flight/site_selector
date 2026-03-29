@@ -1,7 +1,76 @@
 package com.propos.iq.domain.dao.query;
 
 public enum PropOSQuery {
+    PPD_HISTORY_BY_FULL_POSTCODE("""
+        SELECT
+            lp.lsoa_code,
+            lp.transaction_count,
+            lp.median_price,
+            lp.avg_price,
+            lp.min_price,
+            lp.max_price,
+            lp.detached_count,
+            lp.semi_count,
+            lp.terraced_count,
+            lp.flat_count,
+            lp.new_build_count,
+            lp.median_price_5yr,
+            lp.median_price_1yr,
+            lp.transactions_1yr,
+            lp.price_growth_5yr_pct
+        FROM feat.lsoa_ppd lp
+        JOIN ref.postcode_to_lsoa p
+            ON p.lsoa21cd = lp.lsoa_code
+        WHERE p.postcode_norm = ?
+        LIMIT 1
+        """),
 
+    PPD_HISTORY_BY_DISTRICT("""
+        SELECT
+            SUM(lp.transaction_count)                                           AS transaction_count,
+            ROUND(AVG(lp.median_price))                                         AS median_price,
+            ROUND(AVG(lp.avg_price))                                            AS avg_price,
+            MIN(lp.min_price)                                                   AS min_price,
+            MAX(lp.max_price)                                                   AS max_price,
+            SUM(lp.detached_count)                                              AS detached_count,
+            SUM(lp.semi_count)                                                  AS semi_count,
+            SUM(lp.terraced_count)                                              AS terraced_count,
+            SUM(lp.flat_count)                                                  AS flat_count,
+            SUM(lp.new_build_count)                                             AS new_build_count,
+            ROUND(AVG(lp.median_price_5yr))                                     AS median_price_5yr,
+            ROUND(AVG(lp.median_price_1yr))                                     AS median_price_1yr,
+            SUM(lp.transactions_1yr)                                            AS transactions_1yr,
+            ROUND(AVG(lp.price_growth_5yr_pct))                                 AS price_growth_5yr_pct,
+            COUNT(DISTINCT lp.lsoa_code)                                        AS lsoa_count
+        FROM feat.lsoa_ppd lp
+        WHERE lp.lsoa_code IN (
+            SELECT DISTINCT p.lsoa21cd
+            FROM ref.postcode_to_lsoa p
+            WHERE p.postcode_norm LIKE ?
+        )
+        """),
+
+    PPD_HISTORY_BY_LSOA("""
+        SELECT
+            lp.lsoa_code,
+            lp.transaction_count,
+            lp.median_price,
+            lp.avg_price,
+            lp.min_price,
+            lp.max_price,
+            lp.detached_count,
+            lp.semi_count,
+            lp.terraced_count,
+            lp.flat_count,
+            lp.new_build_count,
+            lp.median_price_5yr,
+            lp.median_price_1yr,
+            lp.transactions_1yr,
+            lp.price_growth_5yr_pct
+        FROM feat.lsoa_ppd lp
+        WHERE lp.lsoa_code = ?
+        LIMIT 1
+        """),
     AREA_PROFILE_BY_POSTCODE("""
         SELECT
 
@@ -1937,7 +2006,58 @@ public enum PropOSQuery {
         ) <= 2000
         ORDER BY poi_type, distance_m
         LIMIT 100
+        """),
+    OWNERSHIP_BY_POSTCODE("""
+        SELECT
+            lo.lsoa_code,
+            lo.total_corporate_titles,
+            lo.freehold_count,
+            lo.leasehold_count,
+            lo.unique_companies,
+            lo.overseas_titles,
+            lo.top_overseas_country,
+            lo.overseas_countries
+        FROM feat.lsoa_ownership lo
+        JOIN ref.postcode_to_lsoa p ON p.lsoa21cd = lo.lsoa_code
+        WHERE p.postcode_norm = ?
+        LIMIT 1
+        """),
+
+    OWNERSHIP_BY_DISTRICT("""
+        SELECT
+            SUM(lo.total_corporate_titles)          AS total_corporate_titles,
+            SUM(lo.freehold_count)                  AS freehold_count,
+            SUM(lo.leasehold_count)                 AS leasehold_count,
+            SUM(lo.unique_companies)                AS unique_companies,
+            SUM(lo.overseas_titles)                 AS overseas_titles,
+            SUM(lo.overseas_countries)              AS overseas_countries,
+            MODE() WITHIN GROUP (
+                ORDER BY lo.top_overseas_country
+            )                                       AS top_overseas_country,
+            COUNT(DISTINCT lo.lsoa_code)            AS lsoa_count
+        FROM feat.lsoa_ownership lo
+        WHERE lo.lsoa_code IN (
+            SELECT DISTINCT p.lsoa21cd
+            FROM ref.postcode_to_lsoa p
+            WHERE p.postcode_norm LIKE ?
+        )
+        """),
+
+    OWNERSHIP_BY_LSOA("""
+        SELECT
+            lo.lsoa_code,
+            lo.total_corporate_titles,
+            lo.freehold_count,
+            lo.leasehold_count,
+            lo.unique_companies,
+            lo.overseas_titles,
+            lo.top_overseas_country,
+            lo.overseas_countries
+        FROM feat.lsoa_ownership lo
+        WHERE lo.lsoa_code = ?
+        LIMIT 1
         """);
+
 
     private final String query;
 

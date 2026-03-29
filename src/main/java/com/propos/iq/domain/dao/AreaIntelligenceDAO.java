@@ -547,4 +547,203 @@ public class AreaIntelligenceDAO {
                 )
         );
     }
+
+
+    // ─────────────────────────────────────────────────────────────────────────────
+// Add to AreaIntelligenceDAO.java — replace the stub at the bottom
+// ─────────────────────────────────────────────────────────────────────────────
+
+    public PpdHistory getPpdHistory(final String location) {
+        final String normalised = location.toUpperCase().replaceAll("\\s+", "");
+        logger.infof("getPpdHistory: %s", normalised);
+
+        // ── Input type detection ──────────────────────────────────────────────
+        // LSOA code:       starts with E01, E02 etc — 9 chars alphanumeric
+        // Full postcode:   e.g. B388DR, SW1A2AA — ends with digit+2 letters
+        // District:        everything else — e.g. B38, SW1, M1
+        final boolean isLsoa     = normalised.matches("E\\d{8}");
+        final boolean isFullPost = normalised.matches("[A-Z]{1,2}\\d{1,2}[A-Z]?\\d[A-Z]{2}");
+
+        if (isLsoa) {
+            return getPpdHistoryByLsoa(normalised);
+        } else if (isFullPost) {
+            return getPpdHistoryByFullPostcode(normalised);
+        } else {
+            return getPpdHistoryByDistrict(normalised);
+        }
+    }
+
+    private PpdHistory getPpdHistoryByFullPostcode(final String normalisedPostcode) {
+        logger.infof("getPpdHistoryByFullPostcode: %s", normalisedPostcode);
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     PropOSQuery.PPD_HISTORY_BY_FULL_POSTCODE.query())) {
+
+            ps.setString(1, normalisedPostcode);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapPpdHistory(rs, false);
+                }
+            }
+        } catch (SQLException e) {
+            logger.errorf("getPpdHistoryByFullPostcode error [%s]: %s",
+                    normalisedPostcode, e.getMessage());
+        }
+        return null;
+    }
+
+    private PpdHistory getPpdHistoryByDistrict(final String district) {
+        logger.infof("getPpdHistoryByDistrict: %s", district);
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     PropOSQuery.PPD_HISTORY_BY_DISTRICT.query())) {
+
+            // District match: B38 → LIKE 'B38%'
+            ps.setString(1, district + "%");
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapPpdHistory(rs, true);
+                }
+            }
+        } catch (SQLException e) {
+            logger.errorf("getPpdHistoryByDistrict error [%s]: %s",
+                    district, e.getMessage());
+        }
+        return null;
+    }
+
+    private PpdHistory getPpdHistoryByLsoa(final String lsoaCode) {
+        logger.infof("getPpdHistoryByLsoa: %s", lsoaCode);
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     PropOSQuery.PPD_HISTORY_BY_LSOA.query())) {
+
+            ps.setString(1, lsoaCode);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapPpdHistory(rs, false);
+                }
+            }
+        } catch (SQLException e) {
+            logger.errorf("getPpdHistoryByLsoa error [%s]: %s",
+                    lsoaCode, e.getMessage());
+        }
+        return null;
+    }
+
+    private PpdHistory mapPpdHistory(final ResultSet rs,
+                                     final boolean isDistrict) throws SQLException {
+        // lsoa_code and lsoa_count are only present depending on query type
+        final String  lsoaCode    = isDistrict ? null        : rs.getString("lsoa_code");
+        final Integer lsoaCount   = isDistrict ? rs.getInt("lsoa_count") : null;
+
+        return new PpdHistory(
+                lsoaCode,
+                lsoaCount,
+                rs.getLong("transaction_count"),
+                rs.getLong("median_price"),
+                rs.getLong("avg_price"),
+                rs.getLong("min_price"),
+                rs.getLong("max_price"),
+                rs.getLong("detached_count"),
+                rs.getLong("semi_count"),
+                rs.getLong("terraced_count"),
+                rs.getLong("flat_count"),
+                rs.getLong("new_build_count"),
+                rs.getLong("median_price_5yr"),
+                rs.getLong("median_price_1yr"),
+                rs.getLong("transactions_1yr"),
+                rs.getLong("price_growth_5yr_pct")
+        );
+    }
+
+
+    public OwnershipProfile getOwnershipProfile(final String location) {
+        final String normalised = location.toUpperCase().replaceAll("\\s+", "");
+        logger.infof("getOwnershipProfile: %s", normalised);
+
+        final boolean isLsoa     = normalised.matches("E\\d{8}");
+        final boolean isFullPost = normalised.matches("[A-Z]{1,2}\\d{1,2}[A-Z]?\\d[A-Z]{2}");
+
+        if (isLsoa) {
+            return getOwnershipByLsoa(normalised);
+        } else if (isFullPost) {
+            return getOwnershipByFullPostcode(normalised);
+        } else {
+            return getOwnershipByDistrict(normalised);
+        }
+    }
+
+    private OwnershipProfile getOwnershipByFullPostcode(final String normalisedPostcode) {
+        logger.infof("getOwnershipByFullPostcode: %s", normalisedPostcode);
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     PropOSQuery.OWNERSHIP_BY_POSTCODE.query())) {
+            ps.setString(1, normalisedPostcode);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return mapOwnership(rs, false);
+            }
+        } catch (SQLException e) {
+            logger.errorf("getOwnershipByFullPostcode error [%s]: %s",
+                    normalisedPostcode, e.getMessage());
+        }
+        return null;
+    }
+
+    private OwnershipProfile getOwnershipByDistrict(final String district) {
+        logger.infof("getOwnershipByDistrict: %s", district);
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     PropOSQuery.OWNERSHIP_BY_DISTRICT.query())) {
+            ps.setString(1, district + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return mapOwnership(rs, true);
+            }
+        } catch (SQLException e) {
+            logger.errorf("getOwnershipByDistrict error [%s]: %s",
+                    district, e.getMessage());
+        }
+        return null;
+    }
+
+    private OwnershipProfile getOwnershipByLsoa(final String lsoaCode) {
+        logger.infof("getOwnershipByLsoa: %s", lsoaCode);
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     PropOSQuery.OWNERSHIP_BY_LSOA.query())) {
+            ps.setString(1, lsoaCode);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return mapOwnership(rs, false);
+            }
+        } catch (SQLException e) {
+            logger.errorf("getOwnershipByLsoa error [%s]: %s",
+                    lsoaCode, e.getMessage());
+        }
+        return null;
+    }
+
+    private OwnershipProfile mapOwnership(final ResultSet rs,
+                                          final boolean isDistrict) throws SQLException {
+        final String  lsoaCode  = isDistrict ? null : rs.getString("lsoa_code");
+        final Integer lsoaCount = isDistrict ? rs.getInt("lsoa_count") : null;
+
+        return new OwnershipProfile(
+                lsoaCode,
+                lsoaCount,
+                rs.getInt("total_corporate_titles"),
+                rs.getInt("freehold_count"),
+                rs.getInt("leasehold_count"),
+                rs.getInt("unique_companies"),
+                rs.getInt("overseas_titles"),
+                rs.getString("top_overseas_country"),
+                rs.getInt("overseas_countries")
+        );
+    }
+
 }

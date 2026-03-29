@@ -266,13 +266,15 @@
         <h1>UK Property <span>Intelligence</span></h1>
         <p>Ask any question about UK property investment, risk, flood exposure, energy performance, demographics or market conditions.</p>
         <div class="data-pills">
-          <span class="pill">29.3M transactions</span>
+          <span class="pill">30M transactions</span>
           <span class="pill">28.6M EPC records</span>
           <span class="pill">41M UPRNs</span>
           <span class="pill">NaFRA2 flood risk</span>
           <span class="pill">37 months crime data</span>
           <span class="pill">Census 2021</span>
           <span class="pill">Ofcom 2025</span>
+          <span class="pill">4.4M corporate titles</span>
+          <span class="pill">91K overseas titles</span>
         </div>
       </div>
     </div>
@@ -317,6 +319,12 @@
     'Find areas with poor EPC ratings in Bradford',
     'Show areas with worsening crime in Bradford',
     'best areas to invest in England',
+    'What is the price history for B38?',
+    'How much have prices grown in SW1A over 5 years?',
+    'Show me transaction volumes in E1 last year',
+    'How much overseas ownership is there in SW1A?',
+    'Who owns properties in W1?',
+    'Show corporate ownership in E1',
   ];
 
   function renderQuickBtns() {
@@ -393,7 +401,7 @@
 
     if (scores) {
       // Read directly from structured scores — no regex, no fragility
-      if (scores.investmentScore != null) {
+      if (scores.investmentScore != null  && parseFloat(scores.investmentScore) > 0 ) {
         const g = scores.investmentGrade || '';
         const cls = { A:'grade-a', B:'grade-b', C:'grade-c', D:'grade-d', F:'grade-f' }[g] || '';
         cards += `<div class="score-card">
@@ -402,7 +410,7 @@
         <div class="score-card-sub">Grade ${escapeHtml(g) || '—'}</div>
       </div>`;
       }
-      if (scores.riskScore != null) {
+      if (scores.riskScore != null && parseFloat(scores.riskScore) > 0) {
         const r = (scores.riskRating || '').toUpperCase().trim();
         const cls = /^VERY LOW$|^LOW$/.test(r) ? 'risk-low'
                 : /^MEDIUM$/.test(r)         ? 'risk-med'
@@ -413,7 +421,7 @@
         <div class="score-card-sub">${escapeHtml(r) || '—'}</div>
       </div>`;
       }
-      if (scores.opportunityGrade) {
+      if (scores.opportunityGrade && scores.opportunityGrade.toUpperCase() !== 'UNKNOWN') {
         const g = scores.opportunityGrade.toUpperCase();
         const cls = g === 'PRIME' ? 'grade-a' : g === 'STRONG' ? 'grade-b' : g === 'MODERATE' ? 'grade-c' : 'grade-f';
         cards += `<div class="score-card">

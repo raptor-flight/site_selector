@@ -25,11 +25,10 @@ public class PropOSQueryGateway {
     private static final int SESSION_MAX_AGE = 60 * 60 * 4; // 4 hours
 
     private static final Pattern SCORES_PATTERN = Pattern.compile(
-            "SCORES:\\s*investment=([\\d.]+),grade=([A-F]),risk=([\\d.]+)," +
+            "SCORES:\\s*investment=([\\d.]+),grade=([A-FU]),risk=([\\d.]+)," +
                     "riskRating=(\\w+(?:\\s+\\w+)?),opportunity=(\\w+),price=([\\d.]+)",
             Pattern.CASE_INSENSITIVE
     );
-
     private final Logger logger;
     private final PropOSAIService aiService;
     private final PropOSSummarisationService summarisationService;
@@ -69,7 +68,7 @@ public class PropOSQueryGateway {
 
         try {
             // Step 1: Prepend conversation context from previous turns
-            final String context = conversationStore.buildContext(sessionId);
+            final String context = conversationStore.buildContext(sessionId, userQuery);
             final String enrichedQuery = context.isEmpty()
                     ? userQuery
                     : context + userQuery;
@@ -143,7 +142,7 @@ public class PropOSQueryGateway {
         try {
             return new PropOSScores(
                     new BigDecimal(m.group(1)),
-                    m.group(2),
+                    m.group(2).equalsIgnoreCase("UNKNOWN") ? null : m.group(2),
                     new BigDecimal(m.group(3)),
                     m.group(4),
                     m.group(5),
